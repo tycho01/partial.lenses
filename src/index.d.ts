@@ -1,4 +1,5 @@
 
+
 toFunction(o)
 // toFunction(optic) ~> optic
 
@@ -69,11 +70,21 @@ merge
 
 // Folds over traversals
 
+all = pipe2U(mkFirst(x => x ? void 0 : T), not)
+
+and = all(id)
+
+any = pipe2U(mkFirst(x => x ? T : void 0), Boolean)
+
 collectAs
 // collectAs((maybeValue, index) => maybeValue, traversal, maybeData) ~> [...values]
 
 collect
 // collect(traversal, maybeData) ~> [...values]
+
+firstAs = curry(mkFirst(x => void 0 !== x ? the(x) : x))
+
+first = firstAs(id)
 
 foldl(f, r, t, s)
 // foldl((value, maybeValue, index) => value, value, traversal, maybeData) ~> value
@@ -86,6 +97,8 @@ maximum
 
 minimum
 // minimum(traversal, maybeData) ~> maybeValue
+
+or = any(id)
 
 product
 // product(traversal, maybeData) ~> number
