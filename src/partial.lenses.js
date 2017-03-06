@@ -16,13 +16,14 @@ import {
   isString,
   keys,
   object0,
+  pipe2U,
   sndU
 } from "infestines"
 
 //
 
 const sliceIndex = (m, l, d, i) =>
-  void 0 === i ? d : Math.min(Math.max(m, i < 0 ? l + i : i), l)
+  void 0 !== i ? Math.min(Math.max(m, i < 0 ? l + i : i), l) : d
 
 function pair(x0, x1) {return [x0, x1]}
 const cpair = x => xs => [x, xs]
@@ -60,7 +61,12 @@ const Ident = {map: applyU, of: id, ap: applyU, chain: applyU}
 
 const Const = {map: sndU}
 
-const ConcatOf = (ap, empty) => ({map: sndU, ap, of: always(empty)})
+function ConcatOf(ap, empty, delay) {
+  const c = {map: sndU, ap, of: always(empty)}
+  if (delay)
+    c.delay = delay
+  return c
+}
 
 const Monoid = (concat, empty) => ({concat, empty: () => empty})
 
@@ -71,17 +77,20 @@ const Mum = ord =>
 
 const run = (o, C, xi2yC, s, i) => toFunction(o)(C, xi2yC, s, i)
 
-const constAs = toConst => curryN(4, (xMi2y, m) => {
-  const C = toConst(m)
-  return (t, s) => run(t, C, xMi2y, s)
-})
-
 //
 
 const expectedOptic = "Expecting an optic"
+const header = "partial.lenses: "
+
+function warn(f, m) {
+  if (!f.warned) {
+    f.warned = 1
+    console.warn(header + m)
+  }
+}
 
 function errorGiven(m, o) {
-  console.error("partial.lenses:", m, "- given:", o)
+  console.error(header + m + " - given:", o)
   throw new Error(m)
 }
 
@@ -151,13 +160,43 @@ const Collect = ConcatOf(join)
 
 //
 
+function the(v) {
+  function result() {return result}
+  result.v = v
+  return result
+}
+
+const T = the(true)
+const not = x => !x
+
+const First = ConcatOf((l, r) => l && l() || r && r(), void 0, id)
+
+const mkFirst = toM => (xi2yM, t, s) => {
+  if (process.env.NODE_ENV !== "production")
+    warn(mkFirst, "Lazy folds over traversals are experimental")
+  return (s = run(t, First, pipe2U(xi2yM, toM), s),
+          s && (s = s()) && s.v)
+}
+
+//
+
+const traversePartialIndexLazy = (map, ap, z, delay, xi2yA, xs, i, n) =>
+  i < n
+  ? ap(map(cjoin, xi2yA(xs[i], i)), delay(() =>
+       traversePartialIndexLazy(map, ap, z, delay, xi2yA, xs, i+1, n)))
+  : z
+
 function traversePartialIndex(A, xi2yA, xs) {
-  const ap = A.ap, map = A.map
   if (process.env.NODE_ENV !== "production")
     reqApplicative(A)
-  let xsA = (0,A.of)(void 0), i = xs.length
-  while (i--)
-    xsA = ap(map(cjoin, xi2yA(xs[i], i)), xsA)
+  const {map, ap, of, delay} = A
+  let xsA = of(void 0),
+      i = xs.length
+  if (delay)
+    xsA = traversePartialIndexLazy(map, ap, xsA, delay, xi2yA, xs, 0, i)
+  else
+    while (i--)
+      xsA = ap(map(cjoin, xi2yA(xs[i], i)), xsA)
   return map(toArray, xsA)
 }
 
@@ -368,20 +407,34 @@ const branchOnMerge = (x, keys) => xs => {
   return r
 }
 
+function branchOnLazy(keys, vals, map, ap, z, delay, A, xi2yA, x, i) {
+  if (i < keys.length) {
+    const k = keys[i], v = x[k]
+    return ap(map(cpair,
+                  vals ? vals[i](A, xi2yA, x[k], k) : xi2yA(v, k)), delay(() =>
+              branchOnLazy(keys, vals, map, ap, z, delay, A, xi2yA, x, i+1)))
+  } else {
+    return z
+  }
+}
+
 const branchOn = (keys, vals) => (A, xi2yA, x, _) => {
   if (process.env.NODE_ENV !== "production")
     reqApplicative(A)
-  const of = A.of
+  const {map, ap, of, delay} = A
   let i = keys.length
   if (!i)
     return of(object0ToUndefined(x))
   if (!(x instanceof Object))
     x = object0
-  const ap = A.ap, map = A.map
   let xsA = of(0)
-  while (i--) {
-    const k = keys[i], v = x[k]
-    xsA = ap(map(cpair, vals ? vals[i](A, xi2yA, v, k) : xi2yA(v, k)), xsA)
+  if (delay) {
+    xsA = branchOnLazy(keys, vals, map, ap, xsA, delay, A, xi2yA, x, 0)
+  } else {
+    while (i--) {
+      const k = keys[i], v = x[k]
+      xsA = ap(map(cpair, vals ? vals[i](A, xi2yA, v, k) : xi2yA(v, k)), xsA)
+    }
   }
   return map(branchOnMerge(x, keys), xsA)
 }
@@ -456,7 +509,7 @@ export function seq() {
     xMs[i] = toFunction(arguments[i])
   const loop = (M, xi2xM, i, j) => j === n
     ? M.of
-    : x => (0, M.chain)(loop(M, xi2xM, i, j+1), xMs[j](M, xi2xM, x, i))
+    : x => (0,M.chain)(loop(M, xi2xM, i, j+1), xMs[j](M, xi2xM, x, i))
   return (M, xi2xM, x, i) => {
     if (process.env.NODE_ENV !== "production" && !M.chain)
       errorGiven("`seq` requires a monad", M)
@@ -512,41 +565,46 @@ export function lazy(o2o) {
 // Debugging
 
 export function log() {
-  const show = dir => x =>
+  const show = curry((dir, x) =>
     console.log.apply(console,
                       copyToFrom([], 0, arguments, 0, arguments.length)
-                      .concat([dir, x])) || x
+                      .concat([dir, x])) || x)
   return iso(show("get"), show("set"))
 }
 
 // Operations on traversals
 
-export const concatAs = constAs(m => ConcatOf(m.concat, (0,m.empty)()))
+export const concatAs = curryN(4, (xMi2y, m) => {
+  const C = ConcatOf(m.concat, (0,m.empty)(), m.delay)
+  return (t, s) => run(t, C, xMi2y, s)
+})
 
 export const concat = concatAs(id)
 
-export const mergeAs = process.env.NODE_ENV === "production" ? concatAs : (f, m, t, d) => {
-  if (!mergeAs.warned) {
-    mergeAs.warned = 1
-    console.warn("partial.lenses: `mergeAs` is obsolete, just use `concatAs`")
-  }
-  return concatAs(f, m, t, d)
-}
+export const mergeAs = process.env.NODE_ENV === "production" ? concatAs : (f, m, t, d) =>
+  warn(mergeAs, "`mergeAs` is obsolete, just use `concatAs`") ||
+  concatAs(f, m, t, d)
 
-export const merge = process.env.NODE_ENV === "production" ? concat : (m, t, d) => {
-  if (!merge.warned) {
-    merge.warned = 1
-    console.warn("partial.lenses: `merge` is obsolete, just use `concat`")
-  }
-  return concat(m, t, d)
-}
+export const merge = process.env.NODE_ENV === "production" ? concat : (m, t, d) =>
+  warn(merge, "`merge` is obsolete, just use `concat`") ||
+  concat(m, t, d)
 
 // Folds over traversals
+
+export const all = pipe2U(mkFirst(x => x ? void 0 : T), not)
+
+export const and = all(id)
+
+export const any = pipe2U(mkFirst(x => x ? T : void 0), Boolean)
 
 export const collectAs = curry((xi2y, t, s) =>
   toArray(run(t, Collect, xi2y, s)) || [])
 
 export const collect = collectAs(id)
+
+export const firstAs = curry(mkFirst(x => void 0 !== x ? the(x) : x))
+
+export const first = firstAs(id)
 
 export const foldl = curry((f, r, t, s) =>
   fold(f, r, run(t, Collect, pair, s)))
@@ -564,6 +622,8 @@ export const maximum = concat(Mum((x, y) => x > y))
 
 export const minimum = concat(Mum((x, y) => x < y))
 
+export const or = any(id)
+
 export const product = concatAs(unto(1), Monoid((y, x) => x * y, 1))
 
 export const sum = concatAs(unto(0), Monoid((y, x) => x + y, 0))
@@ -571,6 +631,8 @@ export const sum = concatAs(unto(0), Monoid((y, x) => x + y, 0))
 // Creating new traversals
 
 export function branch(template) {
+  if (process.env.NODE_ENV !== "production" && !isObject(template))
+    errorGiven("`branch` expects a plain Object template", template)
   const keys = [], vals = []
   for (const k in template) {
     keys.push(k)
@@ -614,7 +676,7 @@ export const lens = curry((get, set) => (F, xi2yF, x, i) =>
 
 // Computing derived props
 
-export const augment = template => {
+export function augment(template) {
   if (process.env.NODE_ENV !== "production" && !isObject(template))
     errorGiven("`augment` expects a plain Object template", template)
   return lens(
@@ -651,7 +713,7 @@ export const augment = template => {
 
 // Enforcing invariants
 
-export const defaults = out => {
+export function defaults(out) {
   const o2u = x => replaced(out, void 0, x)
   return (F, xi2yF, x, i) => (0,F.map)(o2u, xi2yF(void 0 !== x ? x : out, i))
 }
@@ -749,15 +811,16 @@ export function props() {
   return pick(template)
 }
 
-export const removable = (...ps) => (F, xi2yF, x, i) => (0,F.map)(
-  y => {
+export const removable = (...ps) => {
+  function drop(y) {
     if (!(y instanceof Object))
       return y
     for (let i=0, n=ps.length; i<n; ++i)
       if (hasU(ps[i], y))
         return y
-  },
-  xi2yF(x, i))
+  }
+  return (F, xi2yF, x, i) => (0,F.map)(drop, xi2yF(x, i))
+}
 
 // Providing defaults
 
@@ -771,25 +834,17 @@ export const orElse =
 
 // Read-only mapping
 
-export const to = process.env.NODE_ENV === "production" ? id : wi2x => {
-  if (!to.warned) {
-    to.warned = 1
-    console.warn("partial.lenses: `to` is obsolete, you can directly `compose` plain functions with optics")
-  }
-  return wi2x
-}
+export const to = process.env.NODE_ENV === "production" ? id : wi2x =>
+  warn(to, "`to` is obsolete, you can directly `compose` plain functions with optics") ||
+  wi2x
 
-export const just = process.env.NODE_ENV === "production" ? always : x => {
-  if (!just.warned) {
-    just.warned = 1
-    console.warn("partial.lenses: `just` is obsolete, just use e.g. `R.always`")
-  }
-  return always(x)
-}
+export const just = process.env.NODE_ENV === "production" ? always : x =>
+  warn(just, "`just` is obsolete, just use e.g. `R.always`") ||
+  always(x)
 
 // Transforming data
 
-export const pick = template => {
+export function pick(template) {
   if (process.env.NODE_ENV !== "production" && !isObject(template))
     errorGiven("`pick` expects a plain Object template", template)
   return (F, xi2yF, x, i) =>

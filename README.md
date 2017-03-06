@@ -2,11 +2,11 @@
 
 # Partial Lenses
 
-Lenses are basically a [bidirectional](#L-get) [composable](#L-compose)
-abstraction for [updating](#L-modify) [selected](#L-choose) elements of
-immutable data structures that admits [efficient](#benchmarks) implementation.
-This library provides a collection of
-*partial* [isomorphisms](#isomorphisms), [lenses](#lenses),
+Lenses are basically an abstraction for simultaneously specifying operations
+to [update](#L-modify) and [query](#L-get) immutable data structures.  Lenses
+are [highly composable](#on-composability) and can be [efficient](#benchmarks).
+This library provides a collection
+of [partial](#on-partiality) [isomorphisms](#isomorphisms), [lenses](#lenses),
 and [traversals](#traversals), collectively known as [optics](#optics), for
 manipulating [JSON](http://json.org/) and
 users [can](#L-toFunction) [write](#L-iso) [new](#L-lens) [optics](#L-branch)
@@ -29,6 +29,8 @@ parts.  [▶ Try Lenses!](https://calmm-js.github.io/partial.lenses/)
 * [Tutorial](#tutorial)
 * [Reference](#reference)
   * [Optics](#optics)
+    * [On partiality](#on-partiality)
+    * [On composability](#on-composability)
     * [Operations on optics](#operations-on-optics)
       * [`L.modify(optic, (maybeValue, index) => maybeValue, maybeData) ~> maybeData`](#L-modify "L.modify: POptic s a -> ((Maybe a, Index) -> Maybe a) -> Maybe s -> Maybe s")
       * [`L.remove(optic, maybeData) ~> maybeData`](#L-remove "L.remove: POptic s a -> Maybe s -> Maybe s")
@@ -58,12 +60,18 @@ parts.  [▶ Try Lenses!](https://calmm-js.github.io/partial.lenses/)
       * ~~[`L.merge(monoid, traversal, maybeData) ~> traversal`](#L-merge "L.merge: Monoid a -> (PTraversal s a -> Maybe s -> a)")~~
       * ~~[`L.mergeAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal`](#L-mergeAs "L.mergeAs: ((Maybe a, Index) -> r) -> Monoid r -> (PTraversal s a -> Maybe s -> r)")~~
     * [Folds over traversals](#folds-over-traversals)
+      * [`L.all((maybeValue, index) => value, traversal, maybeData) ~> boolean`](#L-all "L.all: ((Maybe a, Index) -> Boolean) -> PTraversal s a -> Boolean")
+      * [`L.and(traversal, maybeData) ~> boolean`](#L-and "L.or: PTraversal s Boolean -> Boolean")
+      * [`L.any((maybeValue, index) => value, traversal, maybeData) ~> boolean`](#L-any "L.any: ((Maybe a, Index) -> Boolean) -> PTraversal s a -> Boolean")
       * [`L.collect(traversal, maybeData) ~> [...values]`](#L-collect "L.collect: PTraversal s a -> Maybe s -> [a]")
       * [`L.collectAs((maybeValue, index) => maybeValue, traversal, maybeData) ~> [...values]`](#L-collectAs "L.collectAs: ((Maybe a, Index) -> Maybe b) -> PTraversal s a -> Maybe s -> [b]")
+      * [`L.first(traversal, maybeData) ~> maybeValue`](#L-first "L.first: PTraversal s a -> Maybe s -> Maybe a")
+      * [`L.firstAs((maybeValue, index) => maybeValue, traversal, maybeData) ~> maybeValue`](#L-firstAs "L.firstAs: ((Maybe a, Index) -> Maybe b) -> PTraversal s a -> Maybe s -> Maybe b")
       * [`L.foldl((value, maybeValue, index) => value, value, traversal, maybeData) ~> value`](#L-foldl "L.foldl: ((r, Maybe a, Index) -> r) -> r -> PTraversal s a -> Maybe s -> r")
       * [`L.foldr((value, maybeValue, index) => value, value, traversal, maybeData) ~> value`](#L-foldr "L.foldr: ((r, Maybe a, Index) -> r) -> r -> PTraversal s a -> Maybe s -> r")
       * [`L.maximum(traversal, maybeData) ~> maybeValue`](#L-maximum "L.maximum: Ord a => PTraversal s a -> Maybe s -> Maybe a")
       * [`L.minimum(traversal, maybeData) ~> maybeValue`](#L-minimum "L.minimum: Ord a => PTraversal s a -> Maybe s -> Maybe a")
+      * [`L.or(traversal, maybeData) ~> boolean`](#L-or "L.or: PTraversal s Boolean -> Boolean")
       * [`L.product(traversal, maybeData) ~> number`](#L-product "L.product: PTraversal s Number -> Maybe s -> Number")
       * [`L.sum(traversal, maybeData) ~> number`](#L-sum "L.sum: PTraversal s Number -> Maybe s -> Number")
     * [Creating new traversals](#creating-new-traversals)
@@ -129,23 +137,110 @@ parts.  [▶ Try Lenses!](https://calmm-js.github.io/partial.lenses/)
 Let's work with the following sample JSON object:
 
 ```js
-const sampleTexts = {
-  contents: [{ language: "en", text: "Title" },
-             { language: "sv", text: "Rubrik" }]
+const sampleTitles = {
+  titles: [{ language: "en", text: "Title" },
+           { language: "sv", text: "Rubrik" }]
 }
 ```
 
-First we import libraries
+What we'd like to have is a way to access the `text` of titles in a given
+language.  Given a language, we want to be able to
+
+* get the corresponding text,
+* update the corresponding text,
+* insert a new text and the immediately surrounding object in a new language, and
+* remove an existing text and the immediately surrounding object.
+
+Furthermore, when updating, inserting, and removing texts, we'd like the
+operations to treat the JSON as immutable and create new JSON objects with the
+changes rather than mutate existing JSON objects.
+
+Operations like these are what lenses are good at.  Lenses can be seen as a
+simple embedded [DSL](https://en.wikipedia.org/wiki/Domain-specific_language)
+for specifying data manipulation and querying functions.  Lenses allow you to
+focus on an element in a data structure by specifying a path from the root of
+the data structure to the desired element.  Given a lens, one can then perform
+operations, like [`get`](#L-get) and [`set`](#L-set), on the element that the
+lens focuses on.
+
+### Getting started
+
+Let's first import the libraries
 
 ```jsx
 import * as L from "partial.lenses"
 import * as R from "ramda"
 ```
 
-and compose a parameterized lens for accessing texts:
+and [▶ play](https://calmm-js.github.io/partial.lenses#getting-started) just a
+bit with lenses.
+
+As mentioned earlier, with lenses we can specify a path to focus on an element.
+To specify such a path we use primitive lenses
+like [`L.prop(propName)`](#L-prop), to access a named property of an object,
+and [`L.index(elemIndex)`](#L-index), to access an element at a given index in
+an array, and compose the path using [`L.compose(...lenses)`](#L-compose).
+
+So, to just [get](#L-get) at the `titles` array of the `sampleTitles` we can use
+the lens [`L.prop("titles")`](#L-prop):
 
 ```js
-const textIn = language => L.compose(L.prop("contents"),
+L.get(L.prop("titles"),
+      sampleTitles)
+// [{ language: "en", text: "Title" },
+//  { language: "sv", text: "Rubrik" }]
+```
+
+To focus on the first element of the `titles` array, we compose with
+the [`L.index(0)`](#L-index) lens:
+
+```js
+L.get(L.compose(L.prop("titles"),
+                L.index(0)),
+      sampleTitles)
+// { language: "en", text: "Title" }
+```
+
+Then, to focus on the `text`, we compose with [`L.prop("text")`](#L-prop):
+
+```js
+L.get(L.compose(L.prop("titles"),
+                L.index(0),
+                L.prop("text")),
+      sampleTitles)
+// "Title"
+```
+
+We can then use the same composed lens to also [set](#L-set) the `text`:
+
+```js
+L.set(L.compose(L.prop("titles"),
+                L.index(0),
+                L.prop("text")),
+      "New title",
+      sampleTitles)
+// { titles: [{ language: "en", text: "New title" },
+//            { language: "sv", text: "Rubrik" }] }
+```
+
+In practise, specifying ad hoc lenses like this is not very useful.  We'd like
+to access a text in a given language, so we want a lens parameterized by a given
+language.  To create a parameterized lens, we can write a function that returns
+a lens.  Such a lens should then [find](#L-find) the title in the desired
+language.
+
+Furthermore, while a simple path lens like above allows one to get and set an
+existing text, it doesn't know enough about the data structure to be able to
+properly insert new and remove existing texts.  So, we will also need to specify
+such details along with the path to focus on.
+
+### A partial lens to access title texts
+
+Let's then just [compose](#L-compose) a parameterized lens for accessing the
+`text` of titles:
+
+```js
+const textIn = language => L.compose(L.prop("titles"),
                                      L.define([]),
                                      L.normalize(R.sortBy(L.get("language"))),
                                      L.find(R.whereEq({language})),
@@ -156,30 +251,41 @@ const textIn = language => L.compose(L.prop("contents"),
 
 Take a moment to read through the above definition line by line.  Each part
 either specifies a step in the path to select the desired element or a way in
-which the data structure must be treated at that point.  The purpose of
-the [`L.prop(...)`](#L-prop) parts is probably obvious.  The other parts we will
-mention below.
+which the data structure must be treated at that point.
+The [`L.prop(...)`](#L-prop) parts are already familiar.  The other parts we
+will mention below.
 
 ### Querying data
 
 Thanks to the parameterized search
 part, [`L.find(R.whereEq({language}))`](#L-find), of the lens composition, we
-can use it to query texts:
+can use it to query titles:
 
 ```js
-L.get(textIn("sv"), sampleTexts)
+L.get(textIn("sv"), sampleTitles)
 // 'Rubrik'
 ```
 ```js
-L.get(textIn("en"), sampleTexts)
+L.get(textIn("en"), sampleTitles)
 // 'Title'
 ```
 
-Partial lenses can deal with missing data.  If we use the partial lens to query
-a text that does not exist, we get the default:
+The [`L.find`](#L-find) lens is a given a predicate that it then uses to find an
+element from an array to focus on.  In this case the predicate is specified with
+the help of Ramda's [`R.whereEq`](http://ramdajs.com/docs/#whereEq) function
+that creates an equality predicate from a given template object.
+
+#### Missing data can be expected
+
+Partial lenses can generally deal with missing data.  In this case
+when [`L.find`](#L-find) doesn't find an element, it instead works like a lens
+to [append](#L-append) a new element into an array.
+
+So, if we use the partial lens to query a title that does not exist, we get the
+default:
 
 ```js
-L.get(textIn("fi"), sampleTexts)
+L.get(textIn("fi"), sampleTitles)
 // ''
 ```
 
@@ -197,53 +303,64 @@ With partial lenses, `undefined` is the equivalent of empty or non-existent.
 
 ### Updating data
 
-As with ordinary lenses, we can use the same lens to update texts:
+As with ordinary lenses, we can use the same lens to update titles:
 
 ```js
-L.set(textIn("en"), "The title", sampleTexts)
-// { contents: [ { language: 'en', text: 'The title' },
-//               { language: 'sv', text: 'Rubrik' } ] }
+L.set(textIn("en"), "The title", sampleTitles)
+// { titles: [ { language: 'en', text: 'The title' },
+//             { language: 'sv', text: 'Rubrik' } ] }
 ```
 
 ### Inserting data
 
-The same partial lens also allows us to insert new texts:
+The same partial lens also allows us to insert new titles:
 
 ```js
-L.set(textIn("fi"), "Otsikko", sampleTexts)
-// { contents: [ { language: 'en', text: 'Title' },
-//               { language: 'fi', text: 'Otsikko' },
-//               { language: 'sv', text: 'Rubrik' } ] }
+L.set(textIn("fi"), "Otsikko", sampleTitles)
+// { titles: [ { language: 'en', text: 'Title' },
+//             { language: 'fi', text: 'Otsikko' },
+//             { language: 'sv', text: 'Rubrik' } ] }
 ```
 
-Note the position into which the new text was inserted.  The array of texts is
-kept sorted thanks to
+There are couple of things here that require attention.
+
+The reason that the newly inserted object not only has the `text` property, but
+also the `language` property is due to
+the [`L.valueOr({language, text: ""})`](#L-valueOr) part that we used to provide
+a default.
+
+Also note the position into which the new title was inserted.  The array of
+titles is kept sorted thanks to
 the [`L.normalize(R.sortBy(L.get("language")))`](#L-normalize) part of our lens.
+The [`L.normalize`](#L-normalize) lens transforms the data when either read or
+written with the given function.  In this case we used
+Ramda's [`R.sortBy`](http://ramdajs.com/docs/#sortBy) to specify that we want
+the titles to be kept sorted by language.
 
 ### Removing data
 
-Finally, we can use the same partial lens to remove texts:
+Finally, we can use the same partial lens to remove titles:
 
 ```js
-L.set(textIn("sv"), undefined, sampleTexts)
-// { contents: [ { language: 'en', text: 'Title' } ] }
+L.set(textIn("sv"), undefined, sampleTitles)
+// { titles: [ { language: 'en', text: 'Title' } ] }
 ```
 
-Note that a single text is actually a part of an object.  The key to having the
-whole object vanish, rather than just the `text` property, is
+Note that a single title `text` is actually a part of an object.  The key to
+having the whole object vanish, rather than just the `text` property, is
 the [`L.removable("text")`](#L-removable) part of our lens composition.  It
 makes it so that when the `text` property is set to `undefined`, the result will
 be `undefined` rather than merely an object without the `text` property.
 
-If we remove all of the texts, we get the required value:
+If we remove all of the titles, we get the required value:
 
 ```js
 R.pipe(L.set(textIn("sv"), undefined),
-       L.set(textIn("en"), undefined))(sampleTexts)
-// { contents: [] }
+       L.set(textIn("en"), undefined))(sampleTitles)
+// { titles: [] }
 ```
 
-The `contents` property is not removed thanks to the [`L.define([])`](#L-define)
+The `titles` property is not removed thanks to the [`L.define([])`](#L-define)
 part of our lens composition.  It makes it so that when reading or writing
 through the lens, `undefined` becomes the given value.
 
@@ -274,7 +391,7 @@ the JSON data being manipulated.  Recall the lens from the start of the
 example:
 
 ```jsx
-L.compose(L.prop("contents"),
+L.compose(L.prop("titles"),
           L.define([]),
           L.normalize(R.sortBy(L.get("language"))),
           L.find(R.whereEq({language})),
@@ -285,43 +402,43 @@ L.compose(L.prop("contents"),
 
 Following the structure or schema of the JSON, we could break this into three
 separate lenses:
-* a lens for accessing the contents of a data object,
-* a parameterized lens for querying a content object from contents, and
-* a lens for accessing the text of a content object.
+* a lens for accessing the titles of a model object,
+* a parameterized lens for querying a title object from titles, and
+* a lens for accessing the text of a title object.
 
 Furthermore, we could organize the lenses to reflect the structure of the JSON
 model:
 
 ```js
-const Content = {
+const Title = {
   text: [L.removable("text"), "text"]
 }
 
-const Contents = {
-  contentIn: language => [L.find(R.whereEq({language})),
-                          L.valueOr({language, text: ""})]
+const Titles = {
+  titleIn: language => [L.find(R.whereEq({language})),
+                        L.valueOr({language, text: ""})]
 }
 
-const Texts = {
-  contents: ["contents",
-             L.define([]),
-             L.normalize(R.sortBy(L.get("language")))],
-  textIn: language => [Texts.contents,
-                       Contents.contentIn(language),
-                       Content.text]
+const Model = {
+  titles: ["titles",
+           L.define([]),
+           L.normalize(R.sortBy(L.get("language")))],
+  textIn: language => [Model.titles,
+                       Titles.titleIn(language),
+                       Title.text]
 }
 ```
 
 We can now say:
 
 ```js
-L.get(Texts.textIn("sv"), sampleTexts)
+L.get(Model.textIn("sv"), sampleTitles)
 // 'Rubrik'
 ```
 
 This style of organizing lenses is overkill for our toy example.  In a more
-realistic case the `sampleTexts` object would contain many more properties.
-Also, rather than composing a lens, like `Texts.textIn` above, to access a leaf
+realistic case the `sampleTitles` object would contain many more properties.
+Also, rather than composing a lens, like `Model.textIn` above, to access a leaf
 property from the root of our object, we might actually compose lenses
 incrementally as we inspect the model structure.
 
@@ -333,21 +450,21 @@ multiple items.  Continuing on the tutorial example, let's define a traversal
 that targets all the texts:
 
 ```js
-const texts = [Texts.contents,
+const texts = [Model.titles,
                L.elems,
-               Content.text]
+               Title.text]
 ```
 
-What makes the above a traversal is the [`L.elems`](#L-elems) part.  Once a
-traversal is composed with a lens, the whole results is a traversal.  The other
-parts of the above composition should already be familiar from previous
-examples.  Note how we were able to use the previously defined `Texts.contents`
-and `Content.text` lenses.
+What makes the above a traversal is the [`L.elems`](#L-elems) part.  The result
+of composing a traversal with a lens is a traversal.  The other parts of the
+above composition should already be familiar from previous examples.  Note how
+we were able to use the previously defined `Model.titles` and `Title.text`
+lenses.
 
 Now, we can use the above traversal to [`collect`](#L-collect) all the texts:
 
 ```js
-L.collect(texts, sampleTexts)
+L.collect(texts, sampleTitles)
 // [ 'Title', 'Rubrik' ]
 ```
 
@@ -356,7 +473,7 @@ can compute the length of the longest text:
 
 ```js
 const Max = {empty: () => 0, concat: Math.max}
-L.concatAs(R.length, Max, texts, sampleTexts)
+L.concatAs(R.length, Max, texts, sampleTitles)
 // 6
 ```
 
@@ -364,7 +481,7 @@ Of course, we can also modify texts.  For example, we could uppercase all the
 titles:
 
 ```js
-L.modify(texts, R.toUpper, sampleTexts)
+L.modify(texts, R.toUpper, sampleTitles)
 // { contents: [ { language: 'en', text: 'TITLE' },
 //               { language: 'sv', text: 'RUBRIK' } ] }
 ```
@@ -374,14 +491,14 @@ the texts that are longer than 5 characters:
 
 ```js
 L.remove([texts, L.when(t => t.length > 5)],
-         sampleTexts)
+         sampleTitles)
 // { contents: [ { language: 'en', text: 'Title' } ] }
 ```
 
 ## Reference
 
-The combinators provided by this library are available as named imports.
-Typically one just imports the library as:
+The [combinators](https://wiki.haskell.org/Combinator) provided by this library
+are available as named imports.  Typically one just imports the library as:
 
 ```jsx
 import * as L from "partial.lenses"
@@ -395,12 +512,18 @@ known as *optics*.  Traversals can target any number of elements.  Lenses are a
 restriction of traversals that target a single element.  Isomorphisms are a
 restriction of lenses with an inverse.
 
+In addition to basic optics, this library also supports more
+general [transforms](#transforms).  Transforms allow operations, such as
+modifying a single focus multiple times or even in a loop, that are not possible
+with basic optics.  However, transforms are considerably harder to reason about.
+
 Some optics libraries provide many more abstractions, such as "optionals",
 "prisms" and "folds", to name a few, forming a DAG.  Aside from being
 conceptually important, many of those abstractions are not only useful but
 required in a statically typed setting where data structures have precise
 constraints on their shapes, so to speak, and operations on data structures must
-respect those constraints at *all* times.
+respect those constraints at *all* times.  In partial lenses, however, the idea
+is to manage without explicitly providing such abstractions.
 
 In a dynamically typed language like JavaScript, the shapes of run-time objects
 are naturally *malleable*.  Nothing immediately breaks if a new object is
@@ -414,9 +537,72 @@ partial lens, the input is treated as being `undefined`.  This allows specific
 partial optics, such as the simple [`L.prop`](#L-prop) lens, to be used in a
 wider range of situations than corresponding total optics.
 
+#### On partiality
+
+As mentioned many times, in this library all of the optics are
+essentially [partial functions](https://en.wikipedia.org/wiki/Partial_function).
+What does this mean?
+
+By definition, a *total function*, or just a *function*, is defined for all
+possible inputs.  A *partial function*, on the other hand, may not be defined
+for all inputs.
+
+As an example, consider an operation to return the first element of an array.
+Such an operation cannot be total unless the input is restricted to arrays that
+have at least one element.  One might think that the operation could be made
+total by returning a special value in case the input array is empty, but that is
+no longer the same operation&mdash;the special value is not the first element of
+the array.  Now, in partial lenses the idea is that in case the input does not
+match the expectation of the operation, then the input is treated as being
+`undefined`.  This makes the optics in this library partial.
+
+Making all optics partial has a number of consequences.  For one thing, it can
+potentially hide bugs: an incorrectly specified optic treats the input as
+`undefined` and may seem to work without raising an error.  However, partiality
+also has a number of benefits.  In particular, it allows optics to seamlessly
+support both insertion and removal.  It also allows to reduce the number of
+necessary abstractions.  And it tends to make compositions of optics more
+concise with fewer required parts.
+
+#### On composability
+
+As mentioned in the preface, optics are
+highly [composable](https://en.wikipedia.org/wiki/Composability).  What does
+this mean?
+
+A lot of libraries these days claim to be composable.  Is any collection of
+functions composable?  In the opinion of the author of this library, in order
+for something to be called "composable", a couple of conditions must be
+fulfilled:
+
+1. There must be an operation or operations that perform composition.
+2. There must be simple laws on how compositions behave.
+
+Conversely, if there is no operation to perform composition or there are no
+useful simplifying laws on how compositions behave, then one should not call
+such a thing composable.
+
+Now, optics are composable in several ways and in each of those ways there is a
+an operation to perform the composition and laws on how such composed optics
+behave.  Here is a table of the means of composition supported by this library:
+
+|           | Operation                         | Semantics
+| --------- | --------------------------------- | -----------------------------------------------------------------------------------------
+| Nesting   | [`L.compose(...os)`](#L-compose)  | [Monoid](https://en.wikipedia.org/wiki/Monoid) over [unityped](http://cs.stackexchange.com/questions/18847/if-dynamically-typed-languages-are-truly-statically-typed-unityped-languages-w) optics
+| Recursing | [`L.lazy(o => o)`](#L-lazy)       | [Fixed point](https://en.wikipedia.org/wiki/Fixed-point_combinator)
+| Adapting  | [`L.orElse(lb, la)`](#L-orElse)   | [Semigroup](https://en.wikipedia.org/wiki/Semigroup) over [lenses](#lenses)
+| Choosing  | [`L.choice(...ls)`](#L-choice)    | [Monoid](https://en.wikipedia.org/wiki/Monoid) over [lenses](#lenses)
+| Querying  | [`L.chain(x => o, o)`](#L-chain)  | [MonadPlus](https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus)
+| Picking   | [`L.pick({...p:l})`](#L-pick)     | <a href="https://en.wikipedia.org/wiki/Product_(category_theory)">Product</a> of [lenses](#lenses)
+| Branching | [`L.branch({...p:t})`](#L-branch) | [Coproduct](https://en.wikipedia.org/wiki/Coproduct) of [traversals](#traversals)
+
+The above table and, in particular, the semantics column is by no means
+complete.  In particular, the documentation of this library does not generally
+spell out proofs of the semantics.
+
 #### Operations on optics
 
-##### <a name="L-modify"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-modify) [`L.modify(optic, (maybeValue, index) => maybeValue, maybeData) ~> maybeData`](#L-modify "L.modify: POptic s a -> ((Maybe a, Index) -> Maybe a) -> Maybe s -> Maybe s")
+##### <a id="L-modify"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-modify) [`L.modify(optic, (maybeValue, index) => maybeValue, maybeData) ~> maybeData`](#L-modify "L.modify: POptic s a -> ((Maybe a, Index) -> Maybe a) -> Maybe s -> Maybe s")
 
 `L.modify` allows one to map over the focused element
 
@@ -436,7 +622,7 @@ L.modify(["elems", L.elems, "x"],
 
 of a data structure.
 
-##### <a name="L-remove"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-remove) [`L.remove(optic, maybeData) ~> maybeData`](#L-remove "L.remove: POptic s a -> Maybe s -> Maybe s")
+##### <a id="L-remove"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-remove) [`L.remove(optic, maybeData) ~> maybeData`](#L-remove "L.remove: POptic s a -> Maybe s -> Maybe s")
 
 `L.remove` allows one to remove the focused element
 
@@ -459,7 +645,7 @@ Note that `L.remove(optic, maybeData)` is equivalent
 to [`L.set(lens, undefined, maybeData)`](#L-set).  With partial lenses, setting
 to `undefined` typically has the effect of removing the focused element.
 
-##### <a name="L-set"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-set) [`L.set(optic, maybeValue, maybeData) ~> maybeData`](#L-set "L.set: POptic s a -> Maybe a -> Maybe s -> Maybe s")
+##### <a id="L-set"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-set) [`L.set(optic, maybeValue, maybeData) ~> maybeData`](#L-set "L.set: POptic s a -> Maybe a -> Maybe s -> Maybe s")
 
 `L.set` allows one to replace the focused element
 
@@ -482,7 +668,7 @@ to [`L.modify(lens, R.always(maybeValue), maybeData)`](#L-modify).
 
 #### Nesting
 
-##### <a name="L-compose"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-compose) [`L.compose(...optics) ~> optic`](#L-compose "L.compose: (POptic s s1, ...POptic sN a) -> POptic s a") or `[...optics]`
+##### <a id="L-compose"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-compose) [`L.compose(...optics) ~> optic`](#L-compose "L.compose: (POptic s s1, ...POptic sN a) -> POptic s a") or `[...optics]`
 
 `L.compose` performs composition of optics and ordinary functions.  The
 following equations characterize composition:
@@ -535,7 +721,7 @@ Note that [`R.compose`](http://ramdajs.com/docs/#compose) is not the same as
 
 #### Querying
 
-##### <a name="L-chain"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-chain) [`L.chain((value, index) => optic, optic) ~> optic`](#L-chain "L.chain: ((a, Index) -> POptic s b) -> POptic s a -> POptic s b")
+##### <a id="L-chain"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-chain) [`L.chain((value, index) => optic, optic) ~> optic`](#L-chain "L.chain: ((a, Index) -> POptic s b) -> POptic s a -> POptic s b")
 
 `L.chain(toOptic, optic)` is equivalent to
 
@@ -550,7 +736,7 @@ Note that with the [`R.always`](http://ramdajs.com/docs/#always),
 `L.chain`, [`L.choice`](#L-choice) and [`L.zero`](#L-zero) combinators, one can
 consider optics as subsuming the maybe monad.
 
-##### <a name="L-choice"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-choice) [`L.choice(...lenses) ~> optic`](#L-choice "L.choice: (...PLens s a) -> POptic s a")
+##### <a id="L-choice"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-choice) [`L.choice(...lenses) ~> optic`](#L-choice "L.choice: (...PLens s a) -> POptic s a")
 
 `L.choice` returns a partial optic that acts like the first of the given lenses
 whose view is not `undefined` on the given data structure.  When the views of
@@ -564,7 +750,7 @@ L.modify([L.elems, L.choice("a", "d")], R.inc, [{R: 1}, {a: 1}, {d: 2}])
 // [ { R: 1 }, { a: 2 }, { d: 3 } ]
 ```
 
-##### <a name="L-choose"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-choose) [`L.choose((maybeValue, index) => optic) ~> optic`](#L-choose "L.choose: ((Maybe s, Index) -> POptic s a) -> POptic s a")
+##### <a id="L-choose"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-choose) [`L.choose((maybeValue, index) => optic) ~> optic`](#L-choose "L.choose: ((Maybe s, Index) -> POptic s a) -> POptic s a")
 
 `L.choose` creates an optic whose operation is determined by the given function
 that maps the underlying view, which can be `undefined`, to an optic.  In other
@@ -593,7 +779,7 @@ L.modify(majorAxis, R.negate, {x: 2, y: -3})
 // { x: 2, y: 3 }
 ```
 
-##### <a name="L-optional"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-optional) [`L.optional ~> optic`](#L-optional "L.optional: POptic a a")
+##### <a id="L-optional"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-optional) [`L.optional ~> optic`](#L-optional "L.optional: POptic a a")
 
 `L.optional` is an optic over an optional element.  When used as a traversal,
 and the focus is `undefined`, the traversal is empty.  When used as a lens, and
@@ -616,7 +802,7 @@ L.set([L.elems, "x", L.optional], 3, [{x: 1}, {y: 2}])
 Note that `L.optional` is equivalent
 to [`L.when(x => x !== undefined)`](#L-when).
 
-##### <a name="L-when"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-when) [`L.when((maybeValue, index) => testable) ~> optic`](#L-when "L.when: ((Maybe a, Index) -> Boolean) -> POptic a a")
+##### <a id="L-when"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-when) [`L.when((maybeValue, index) => testable) ~> optic`](#L-when "L.when: ((Maybe a, Index) -> Boolean) -> POptic a a")
 
 `L.when` allows one to selectively skip elements within a traversal or to
 selectively turn a lens into a read-only lens whose view is `undefined`.
@@ -631,7 +817,7 @@ L.modify([L.elems, L.when(x => x > 0)], R.negate, [0, -1, 2, -3, 4])
 Note that `L.when(p)` is equivalent
 to [`L.choose((x, i) => p(x, i) ? L.identity : L.zero)`](#L-choose).
 
-##### <a name="L-zero"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-zero) [`L.zero ~> optic`](#L-zero "L.zero: POptic s a")
+##### <a id="L-zero"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-zero) [`L.zero ~> optic`](#L-zero "L.zero: POptic s a")
 
 `L.zero` is the identity element of [`L.choice`](#L-choice)
 and [`L.chain`](#L-chain).  As a traversal, `L.zero` is a traversal of no
@@ -651,7 +837,7 @@ L.collect([L.elems,
 
 #### Recursing
 
-##### <a name="L-lazy"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-lazy) [`L.lazy(optic => optic) ~> optic`](#L-lazy "L.lazy: (POptic s a -> POptic s a) -> POptic s a")
+##### <a id="L-lazy"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-lazy) [`L.lazy(optic => optic) ~> optic`](#L-lazy "L.lazy: (POptic s a -> POptic s a) -> POptic s a")
 
 `L.lazy` can be used to construct optics lazily.  The function given to `L.lazy`
 is passed a forwarding proxy to its return value and can also make forward
@@ -695,7 +881,7 @@ L.remove([flatten, L.when(x => 3 <= x && x <= 4)],
 
 #### Debugging
 
-##### <a name="L-log"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-log) [`L.log(...labels) ~> optic`](#L-log "L.log: (...Any) -> POptic s s")
+##### <a id="L-log"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-log) [`L.log(...labels) ~> optic`](#L-log "L.log: (...Any) -> POptic s s")
 
 `L.log(...labels)` is an identity optic that
 outputs
@@ -727,7 +913,7 @@ L.set(["x", L.log("%s x: %j")], "11", {x: 10})
 
 #### Internals
 
-##### <a name="L-toFunction"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-toFunction) [`L.toFunction(optic) ~> optic`](#L-toFunction "L.toFunction: POptic s a -> ((Functor|Applicative) c, (Maybe a, Index) -> c b, Maybe s, Index) -> c t")
+##### <a id="L-toFunction"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-toFunction) [`L.toFunction(optic) ~> optic`](#L-toFunction "L.toFunction: POptic s a -> ((Functor|Applicative) c, (Maybe a, Index) -> c b, Maybe s, Index) -> c t")
 
 `L.toFunction` converts a given optic, which can be a [string](#L-prop),
 an [integer](#L-index), an [array](#L-compose), or a function to a function.
@@ -781,7 +967,7 @@ and [removed](#L-remove).
 
 #### Sequencing
 
-##### <a name="L-seq"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-seq) [`L.seq(...optics) ~> transform`](#L-seq "L.seq: (...POptic s a) -> PTransform s a")
+##### <a id="L-seq"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-seq) [`L.seq(...optics) ~> transform`](#L-seq "L.seq: (...POptic s a) -> PTransform s a")
 
 `L.seq` creates a transform that modifies the focus with each of the given
 optics in sequence.
@@ -830,7 +1016,7 @@ and [removed](#L-remove).
 
 #### Operations on traversals
 
-##### <a name="L-concat"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-concat) [`L.concat(monoid, traversal, maybeData) ~> traversal`](#L-concat "L.concat: Monoid a -> (PTraversal s a -> Maybe s -> a)")
+##### <a id="L-concat"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-concat) [`L.concat(monoid, traversal, maybeData) ~> traversal`](#L-concat "L.concat: Monoid a -> (PTraversal s a -> Maybe s -> a)")
 
 `L.concat({empty, concat}, t, s)` performs a fold, using the given `concat` and
 `empty` operations, over the elements focused on by the given traversal or lens
@@ -851,7 +1037,7 @@ L.concat(Sum, L.elems, [1, 2, 3])
 Note that `L.concat` is staged so that after given the first argument,
 `L.concat(m)`, a computation step is performed.
 
-##### <a name="L-concatAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-concatAs) [`L.concatAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal`](#L-concatAs "L.concatAs: ((Maybe a, Index) -> r) -> Monoid r -> (PTraversal s a -> Maybe s -> r)")
+##### <a id="L-concatAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-concatAs) [`L.concatAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal`](#L-concatAs "L.concatAs: ((Maybe a, Index) -> r) -> Monoid r -> (PTraversal s a -> Maybe s -> r)")
 
 `L.concatAs(xMi2r, {empty, concat}, t, s)` performs a map, using given function
 `xMi2r`, and fold, using the given `concat` and `empty` operations, over the
@@ -872,7 +1058,7 @@ L.concatAs(x => x, Sum, L.elems, [1, 2, 3])
 Note that `L.concatAs` is staged so that after given the first two arguments,
 `L.concatAs(f, m)`, a computation step is performed.
 
-##### <a name="L-merge"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-merge) ~~[`L.merge(monoid, traversal, maybeData) ~> traversal`](#L-merge "L.merge: Monoid a -> (PTraversal s a -> Maybe s -> a)")~~
+##### <a id="L-merge"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-merge) ~~[`L.merge(monoid, traversal, maybeData) ~> traversal`](#L-merge "L.merge: Monoid a -> (PTraversal s a -> Maybe s -> a)")~~
 
 **WARNING: `L.merge` is obsolete, just use [`L.concat`](#L-concat).**
 
@@ -896,7 +1082,7 @@ Note that `L.merge` is staged so that after given the first argument,
 
 See also: [`L.concat`](#L-concat).
 
-##### <a name="L-mergeAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-mergeAs) ~~[`L.mergeAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal`](#L-mergeAs "L.mergeAs: ((Maybe a, Index) -> r) -> Monoid r -> (PTraversal s a -> Maybe s -> r)")~~
+##### <a id="L-mergeAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-mergeAs) ~~[`L.mergeAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal`](#L-mergeAs "L.mergeAs: ((Maybe a, Index) -> r) -> Monoid r -> (PTraversal s a -> Maybe s -> r)")~~
 
 **WARNING: `L.mergeAs` is obsolete, just use [`L.concatAs`](#L-concatAs).**
 
@@ -923,7 +1109,60 @@ See also: [`L.concatAs`](#L-concatAs).
 
 #### Folds over traversals
 
-##### <a name="L-collect"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-collect) [`L.collect(traversal, maybeData) ~> [...values]`](#L-collect "L.collect: PTraversal s a -> Maybe s -> [a]")
+##### <a id="L-all"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-all) [`L.all((maybeValue, index) => value, traversal, maybeData) ~> boolean`](#L-all "L.all: ((Maybe a, Index) -> Boolean) -> PTraversal s a -> Boolean")
+
+**WARNING: Lazy folds over traversals are experimental.**
+
+`L.all` determines whether all of the elements focused on by the given traversal
+satisfy the given predicate.
+
+For example:
+
+```js
+L.all(x => 1 <= x && x <= 6,
+      flatten,
+      [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+// true
+```
+
+See also: [`L.any`](#L-any) and [`L.firstAs`](#L-firstAs).
+
+##### <a id="L-and"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-and) [`L.and(traversal, maybeData) ~> boolean`](#L-and "L.or: PTraversal s Boolean -> Boolean")
+
+**WARNING: Lazy folds over traversals are experimental.**
+
+`L.and` determines whether all of the elements focused on by the given traversal
+are truthy.
+
+For example:
+
+```js
+L.and(L.elems, [])
+// true
+```
+
+Note that `L.and` is equivalent to [`L.all(R.identity)`](#L-all).  See
+also: [`L.or`](#L-or).
+
+##### <a id="L-any"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-any) [`L.any((maybeValue, index) => value, traversal, maybeData) ~> boolean`](#L-any "L.any: ((Maybe a, Index) -> Boolean) -> PTraversal s a -> Boolean")
+
+**WARNING: Lazy folds over traversals are experimental.**
+
+`L.any` determines whether any of the elements focused on by the given traversal
+satisfy the given predicate.
+
+For example:
+
+```js
+L.any(x => x > 5,
+      flatten,
+      [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+// true
+```
+
+See also: [`L.all`](#L-all) and [`L.firstAs`](#L-firstAs).
+
+##### <a id="L-collect"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-collect) [`L.collect(traversal, maybeData) ~> [...values]`](#L-collect "L.collect: PTraversal s a -> Maybe s -> [a]")
 
 `L.collect` returns an array of the defined elements focused on by the given
 traversal or lens from a data structure.
@@ -938,7 +1177,7 @@ L.collect(["xs", L.elems, "x"], {xs: [{x: 1}, {x: 2}]})
 Note that `L.collect` is equivalent
 to [`L.collectAs(R.identity)`](#L-collectAs).
 
-##### <a name="L-collectAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-collectAs) [`L.collectAs((maybeValue, index) => maybeValue, traversal, maybeData) ~> [...values]`](#L-collectAs "L.collectAs: ((Maybe a, Index) -> Maybe b) -> PTraversal s a -> Maybe s -> [b]")
+##### <a id="L-collectAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-collectAs) [`L.collectAs((maybeValue, index) => maybeValue, traversal, maybeData) ~> [...values]`](#L-collectAs "L.collectAs: ((Maybe a, Index) -> Maybe b) -> PTraversal s a -> Maybe s -> [b]")
 
 `L.collectAs` returns an array of the elements focused on by the given traversal
 or lens from a data structure and mapped by the given function to a defined
@@ -978,7 +1217,56 @@ L.concatAs(R.pipe(R.negate, toCollect),
 The internal implementation of `L.collectAs` is optimized and faster than the
 above naïve implementation.
 
-##### <a name="L-foldl"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-foldl) [`L.foldl((value, maybeValue, index) => value, value, traversal, maybeData) ~> value`](#L-foldl "L.foldl: ((r, Maybe a, Index) -> r) -> r -> PTraversal s a -> Maybe s -> r")
+##### <a id="L-first"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-first) [`L.first(traversal, maybeData) ~> maybeValue`](#L-first "L.first: PTraversal s a -> Maybe s -> Maybe a")
+
+**WARNING: Lazy folds over traversals are experimental.**
+
+`L.first` goes lazily over the elements focused on by the given traversal and
+returns the first non-`undefined` element.
+
+```js
+L.first([L.elems, "y"], [{x:1},{y:2},{z:3}])
+// 2
+```
+
+Note that `L.first` is equivalent to [`L.firstAs(R.identity)`](#L-firstAs).
+
+##### <a id="L-firstAs"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-firstAs) [`L.firstAs((maybeValue, index) => maybeValue, traversal, maybeData) ~> maybeValue`](#L-firstAs "L.firstAs: ((Maybe a, Index) -> Maybe b) -> PTraversal s a -> Maybe s -> Maybe b")
+
+**WARNING: Lazy folds over traversals are experimental.**
+
+`L.firstAs` goes lazily over the elements focused on by the given traversal,
+applying the given function to each element, and returns the first
+non-`undefined` value returned by the function.
+
+```js
+L.firstAs(x => x > 3 ? -x : undefined, L.elems, [3,1,4,1,5])
+// -4
+```
+
+`L.firstAs` operates lazily.  The user specified function is only applied to
+elements until the first non-`undefined` value is returned and after that
+`L.firstAs` returns without examining more elements.
+
+Note that `L.firstAs` can be used to implement many other operations over
+traversals such as finding an element matching a predicate and checking whether
+all/any elements match a predicate.  For example, here is how you could
+implement a for all predicate over traversals:
+
+```js
+const all = R.curry((p, t, s) => !L.firstAs(x => p(x) ? undefined : true, t, s))
+```
+
+Now:
+
+```js
+all(x => x < 9,
+    flatten,
+    [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+// true
+```
+
+##### <a id="L-foldl"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-foldl) [`L.foldl((value, maybeValue, index) => value, value, traversal, maybeData) ~> value`](#L-foldl "L.foldl: ((r, Maybe a, Index) -> r) -> r -> PTraversal s a -> Maybe s -> r")
 
 `L.foldl` performs a fold from left over the elements focused on by the given
 traversal.
@@ -990,7 +1278,7 @@ L.foldl((x, y) => x + y, 0, L.elems, [1,2,3])
 // 6
 ```
 
-##### <a name="L-foldr"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-foldr) [`L.foldr((value, maybeValue, index) => value, value, traversal, maybeData) ~> value`](#L-foldr "L.foldr: ((r, Maybe a, Index) -> r) -> r -> PTraversal s a -> Maybe s -> r")
+##### <a id="L-foldr"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-foldr) [`L.foldr((value, maybeValue, index) => value, value, traversal, maybeData) ~> value`](#L-foldr "L.foldr: ((r, Maybe a, Index) -> r) -> r -> PTraversal s a -> Maybe s -> r")
 
 `L.foldr` performs a fold from right over the elements focused on by the given
 traversal.
@@ -1002,7 +1290,7 @@ L.foldr((x, y) => x * y, 1, L.elems, [1,2,3])
 // 6
 ```
 
-##### <a name="L-maximum"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-maximum) [`L.maximum(traversal, maybeData) ~> maybeValue`](#L-maximum "L.maximum: Ord a => PTraversal s a -> Maybe s -> Maybe a")
+##### <a id="L-maximum"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-maximum) [`L.maximum(traversal, maybeData) ~> maybeValue`](#L-maximum "L.maximum: Ord a => PTraversal s a -> Maybe s -> Maybe a")
 
 `L.maximum` computes a maximum, according to the `>` operator, of the optional
 elements targeted by the traversal.
@@ -1014,7 +1302,7 @@ L.maximum(L.elems, [1,2,3])
 // 3
 ```
 
-##### <a name="L-minimum"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-minimum) [`L.minimum(traversal, maybeData) ~> maybeValue`](#L-minimum "L.minimum: Ord a => PTraversal s a -> Maybe s -> Maybe a")
+##### <a id="L-minimum"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-minimum) [`L.minimum(traversal, maybeData) ~> maybeValue`](#L-minimum "L.minimum: Ord a => PTraversal s a -> Maybe s -> Maybe a")
 
 `L.minimum` computes a minimum, according to the `<` operator, of the optional
 elements targeted by the traversal.
@@ -1026,7 +1314,24 @@ L.minimum(L.elems, [1,2,3])
 // 1
 ```
 
-##### <a name="L-product"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#-product) [`L.product(traversal, maybeData) ~> number`](#L-product "L.product: PTraversal s Number -> Maybe s -> Number")
+##### <a id="L-or"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-or) [`L.or(traversal, maybeData) ~> boolean`](#L-or "L.or: PTraversal s Boolean -> Boolean")
+
+**WARNING: Lazy folds over traversals are experimental.**
+
+`L.or` determines whether any of the elements focused on by the given traversal
+is truthy.
+
+For example:
+
+```js
+L.or(L.elems, [])
+// false
+```
+
+Note that `L.or` is equivalent to [`L.any(R.identity)`](#L-any).  See
+also: [`L.and`](#L-and).
+
+##### <a id="L-product"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#-product) [`L.product(traversal, maybeData) ~> number`](#L-product "L.product: PTraversal s Number -> Maybe s -> Number")
 
 `L.product` computes the product of the optional numbers targeted by the
 traversal.
@@ -1038,7 +1343,7 @@ L.product(L.elems, [1,2,3])
 // 6
 ```
 
-##### <a name="L-sum"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-sum) [`L.sum(traversal, maybeData) ~> number`](#L-sum "L.sum: PTraversal s Number -> Maybe s -> Number")
+##### <a id="L-sum"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-sum) [`L.sum(traversal, maybeData) ~> number`](#L-sum "L.sum: PTraversal s Number -> Maybe s -> Number")
 
 `L.sum` computes the sum of the optional numbers targeted by the traversal.
 
@@ -1051,7 +1356,7 @@ L.sum(L.elems, [1,2,3])
 
 #### Creating new traversals
 
-##### <a name="L-branch"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-branch) [`L.branch({prop: traversal, ...props}) ~> traversal`](#L-branch "L.branch: {p1: PTraversal s a, ...pts} -> PTraversal s a")
+##### <a id="L-branch"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-branch) [`L.branch({prop: traversal, ...props}) ~> traversal`](#L-branch "L.branch: {p1: PTraversal s a, ...pts} -> PTraversal s a")
 
 `L.branch` creates a new traversal from a given template object that specifies
 how the new traversal should visit the properties of an object.
@@ -1080,7 +1385,7 @@ See the [BST traversal](#bst-traversal) section for a more meaningful example.
 
 #### Traversals and combinators
 
-##### <a name="L-elems"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-elems) [`L.elems ~> traversal`](#L-elems "L.elems: PTraversal [a] a")
+##### <a id="L-elems"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-elems) [`L.elems ~> traversal`](#L-elems "L.elems: PTraversal [a] a")
 
 `L.elems` is a traversal over the elements of an [array-like](#array-like)
 object.  When written through, `L.elems` always produces an `Array`.
@@ -1103,7 +1408,7 @@ L.modify([L.rewrite(xs => Int8Array.from(xs)), L.elems],
 // Int8Array [ 0, 5, 1, 3, 5 ]
 ```
 
-##### <a name="L-values"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-values) [`L.values ~> traversal`](#L-values "L.values: PTraversal {p: a, ...ps} a")
+##### <a id="L-values"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-values) [`L.values ~> traversal`](#L-values "L.values: PTraversal {p: a, ...ps} a")
 
 `L.values` is a traversal over the values of an `instanceof Object`.  When
 written through, `L.values` always produces an `Object`.
@@ -1149,7 +1454,7 @@ Lenses always have a single focus which can be [viewed](#L-get) directly.
 
 #### Operations on lenses
 
-##### <a name="L-get"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-get) [`L.get(lens, maybeData) ~> maybeValue`](#L-get "L.get: PLens s a -> Maybe s -> Maybe a")
+##### <a id="L-get"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-get) [`L.get(lens, maybeData) ~> maybeValue`](#L-get "L.get: PLens s a -> Maybe s -> Maybe a")
 
 `L.get` returns the focused element from a data structure.
 
@@ -1164,7 +1469,7 @@ Note that `L.get` does not work on [traversals](#traversals).
 
 #### Creating new lenses
 
-##### <a name="L-lens"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-lens) [`L.lens((maybeData, index) => maybeValue, (maybeValue, maybeData, index) => maybeData) ~> lens`](#L-lens "L.lens: ((Maybe s, Index) -> Maybe a) -> ((Maybe a, Maybe s, Index) -> Maybe s) -> PLens s a")
+##### <a id="L-lens"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-lens) [`L.lens((maybeData, index) => maybeValue, (maybeValue, maybeData, index) => maybeData) ~> lens`](#L-lens "L.lens: ((Maybe s, Index) -> Maybe a) -> ((Maybe a, Maybe s, Index) -> Maybe s) -> PLens s a")
 
 `L.lens` creates a new primitive lens.  The first parameter is the *getter* and
 the second parameter is the *setter*.  The setter takes two parameters: the
@@ -1227,7 +1532,7 @@ example of using `L.lens`.
 
 #### Computing derived props
 
-##### <a name="L-augment"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-augment) [`L.augment({prop: object => value, ...props}) ~> lens`](#L-augment "L.augment: {p1: o -> a1, ...ps} -> PLens {...o} {...o, p1: a1, ...ps}")
+##### <a id="L-augment"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-augment) [`L.augment({prop: object => value, ...props}) ~> lens`](#L-augment "L.augment: {p1: o -> a1, ...ps} -> PLens {...o} {...o, p1: a1, ...ps}")
 
 `L.augment` is given a template of functions to compute new properties.  When
 not viewing or setting a defined object, the result is `undefined`.  When
@@ -1245,7 +1550,7 @@ L.modify(L.augment({y: r => r.x + 1}),
 
 #### Enforcing invariants
 
-##### <a name="L-defaults"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-defaults) [`L.defaults(valueIn) ~> lens`](#L-defaults "L.defaults: s -> PLens s s")
+##### <a id="L-defaults"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-defaults) [`L.defaults(valueIn) ~> lens`](#L-defaults "L.defaults: s -> PLens s s")
 
 `L.defaults` is used to specify a default context or value for an element in
 case it is missing.  When set with the default value, the effect is to remove
@@ -1271,7 +1576,7 @@ L.set(["items", L.defaults([])], [], {items: [1, 2, 3]})
 Note that `L.defaults(valueIn)` is equivalent
 to [`L.replace(undefined, valueIn)`](#L-replace).
 
-##### <a name="L-define"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-define) [`L.define(value) ~> lens`](#L-define "L.define: s -> PLens s s")
+##### <a id="L-define"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-define) [`L.define(value) ~> lens`](#L-define "L.define: s -> PLens s s")
 
 `L.define` is used to specify a value to act as both the default value and the
 required value for an element.
@@ -1288,7 +1593,7 @@ L.set(["x", L.define(null)], undefined, {y: 10})
 Note that `L.define(value)` is equivalent to `[L.required(value),
 L.defaults(value)]`.
 
-##### <a name="L-normalize"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-normalize) [`L.normalize((value, index) => maybeValue) ~> lens`](#L-normalize "L.normalize: ((s, Index) -> Maybe s) -> PLens s s")
+##### <a id="L-normalize"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-normalize) [`L.normalize((value, index) => maybeValue) ~> lens`](#L-normalize "L.normalize: ((s, Index) -> Maybe s) -> PLens s s")
 
 `L.normalize` maps the value with same given transform when viewed and set and
 implicitly maps `undefined` to `undefined`.
@@ -1301,7 +1606,7 @@ Note that the difference between `L.normalize` and [`L.rewrite`](#L-rewrite) is
 that `L.normalize` applies the transform in both directions
 while [`L.rewrite`](#L-rewrite) only applies the transform when writing.
 
-##### <a name="L-required"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-required) [`L.required(valueOut) ~> lens`](#L-required "L.required: s -> PLens s s")
+##### <a id="L-required"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-required) [`L.required(valueOut) ~> lens`](#L-required "L.required: s -> PLens s s")
 
 `L.required` is used to specify that an element is not to be removed; in case it
 is removed, the given value will be substituted instead.
@@ -1324,7 +1629,7 @@ L.remove(["items", L.required([]), 0], {items: [1]})
 Note that `L.required(valueOut)` is equivalent
 to [`L.replace(valueOut, undefined)`](#L-replace).
 
-##### <a name="L-rewrite"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-rewrite) [`L.rewrite((valueOut, index) => maybeValueOut) ~> lens`](#L-rewrite "L.rewrite: ((s, Index) -> Maybe s) -> PLens s s")
+##### <a id="L-rewrite"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-rewrite) [`L.rewrite((valueOut, index) => maybeValueOut) ~> lens`](#L-rewrite "L.rewrite: ((s, Index) -> Maybe s) -> PLens s s")
 
 `L.rewrite` maps the value with the given transform when set and implicitly maps
 `undefined` to `undefined`.  One use case for `rewrite` is to re-establish data
@@ -1336,7 +1641,7 @@ while `L.rewrite` only applies the transform when writing.
 
 See the [BST as a lens](#bst-as-a-lens) section for a meaningful example.
 
-#### <a name="array-like"></a> Lensing array-like objects
+#### <a id="array-like"></a> Lensing array-like objects
 
 Objects that have a non-negative integer `length` and strings, which are not
 considered `Object` instances in JavaScript, are considered *array-like* objects
@@ -1361,7 +1666,7 @@ L.set([L.rewrite(R.join("")), 1], "a", "LoLa")
 // 'LaLa'
 ```
 
-##### <a name="L-append"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-append) [`L.append ~> lens`](#L-append "L.append: PLens [a] a")
+##### <a id="L-append"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-append) [`L.append ~> lens`](#L-append "L.append: PLens [a] a")
 
 `L.append` is a write-only lens that can be used to append values to
 an [array-like](#array-like) object.  The view of `L.append` is always
@@ -1386,7 +1691,7 @@ Note that `L.append` is equivalent to [`L.index(i)`](#L-index) with the index
 `i` set to the length of the focused array or 0 in case the focus is not a
 defined array.
 
-##### <a name="L-filter"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-filter) [`L.filter((value, index) => testable) ~> lens`](#L-filter "L.filter: ((a, Index) -> Boolean) -> PLens [a] [a]")
+##### <a id="L-filter"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-filter) [`L.filter((value, index) => testable) ~> lens`](#L-filter "L.filter: ((a, Index) -> Boolean) -> PLens [a] [a]")
 
 `L.filter` operates on [array-like](#array-like) objects.  When not viewing an
 array-like object, the result is `undefined`.  When viewing an array-like
@@ -1415,7 +1720,7 @@ of [`L.normalize`](#L-normalize) or [`L.rewrite`](#L-rewrite) would be
 preferable.  Also, the [`L.elems`](#L-elems) traversal composed
 with [`L.when`](#L-when) will retain order of elements.
 
-##### <a name="L-find"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-find) [`L.find((value, index) => testable) ~> lens`](#L-find "L.find: ((a, Index) -> Boolean) -> PLens [a] a")
+##### <a id="L-find"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-find) [`L.find((value, index) => testable) ~> lens`](#L-find "L.find: ((a, Index) -> Boolean) -> PLens [a] a")
 
 `L.find` operates on [array-like](#array-like) objects
 like [`L.index`](#L-index), but the index to be viewed is determined by finding
@@ -1427,7 +1732,7 @@ L.remove(L.find(x => x <= 2), [3,1,4,1,5,9,2])
 // [ 3, 4, 1, 5, 9, 2 ]
 ```
 
-##### <a name="L-findWith"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-findWith) [`L.findWith(...lenses) ~> lens`](#L-findWith "L.findWith: (PLens s s1, ...PLens sN a) -> PLens [s] a")
+##### <a id="L-findWith"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-findWith) [`L.findWith(...lenses) ~> lens`](#L-findWith "L.findWith: (PLens s s1, ...PLens sN a) -> PLens [s] a")
 
 `L.findWith(...lenses)` chooses an index from an [array-like](#array-like)
 object through which the given lens, [`[...lenses]`](#L-compose), focuses on a
@@ -1444,7 +1749,7 @@ L.set(L.findWith("x"), 3, [{z: 6}, {x: 9}, {y: 6}])
 // [ { z: 6 }, { x: 3 }, { y: 6 } ]
 ```
 
-##### <a name="L-index"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-index) [`L.index(elemIndex) ~> lens`](#L-index "L.index: Integer -> PLens [a] a") or `elemIndex`
+##### <a id="L-index"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-index) [`L.index(elemIndex) ~> lens`](#L-index "L.index: Integer -> PLens [a] a") or `elemIndex`
 
 `L.index(elemIndex)` or just `elemIndex` focuses on the element at specified
 index of an [array-like](#array-like) object.
@@ -1515,7 +1820,7 @@ the handling of `undefined` within partial lenses, this is often not a problem,
 but sometimes you need the "default" value both ways.  In that case you can
 use [`L.define`](#L-define).
 
-##### <a name="L-slice"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-slice) [`L.slice(maybeBegin, maybeEnd) ~> lens`](#L-slice "L.slice: Maybe Integer -> Maybe Integer -> PLens [a] [a]")
+##### <a id="L-slice"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-slice) [`L.slice(maybeBegin, maybeEnd) ~> lens`](#L-slice "L.slice: Maybe Integer -> Maybe Integer -> PLens [a] [a]")
 
 `L.slice` focuses on a specified range of elements of
 an [array-like](#array-like) object.  The range is determined like with the
@@ -1539,7 +1844,7 @@ L.set(L.slice(-2, undefined), [0], [1,2,3,4])
 
 #### Lensing objects
 
-##### <a name="L-prop"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-prop) [`L.prop(propName) ~> lens`](#L-prop "L.prop: (p: a) -> PLens {p: a, ...ps} a") or `propName`
+##### <a id="L-prop"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-prop) [`L.prop(propName) ~> lens`](#L-prop "L.prop: (p: a) -> PLens {p: a, ...ps} a") or `propName`
 
 `L.prop(propName)` or just `propName` focuses on the specified object property.
 
@@ -1570,7 +1875,7 @@ L.set([L.rewrite(objectTo(XYZ)), "z"], 3, new XYZ(3,1,4))
 // XYZ { x: 3, y: 1, z: 3 }
 ```
 
-##### <a name="L-props"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-props) [`L.props(...propNames) ~> lens`](#L-props "L.props: (p1: a1, ...ps) -> PLens {p1: a1, ...ps, ...o} {p1: a1, ...ps}")
+##### <a id="L-props"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-props) [`L.props(...propNames) ~> lens`](#L-props "L.props: (p1: a1, ...ps) -> PLens {p1: a1, ...ps, ...o} {p1: a1, ...ps}")
 
 `L.props` focuses on a subset of properties of an object, allowing one to treat
 the subset of properties as a unit.  The view of `L.props` is `undefined` when
@@ -1587,7 +1892,7 @@ L.set(L.props("x", "y"), {x: 4}, {x: 1, y: 2, z: 3})
 Note that `L.props(k1, ..., kN)` is equivalent to [`L.pick({[k1]: k1, ..., [kN]:
 kN})`](#L-pick).
 
-##### <a name="L-removable"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-removable) [`L.removable(...propNames) ~> lens`](#L-removable "L.removable (p1: a1, ...ps) -> PLens {p1: a1, ...ps, ...o} {p1: a1, ...ps, ...o}")
+##### <a id="L-removable"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-removable) [`L.removable(...propNames) ~> lens`](#L-removable "L.removable (p1: a1, ...ps) -> PLens {p1: a1, ...ps, ...o} {p1: a1, ...ps, ...o}")
 
 `L.removable` creates a lens that, when written through, replaces the whole
 result with `undefined` if none of the given properties is defined in the
@@ -1621,7 +1926,7 @@ replace such a pair.
 
 #### Providing defaults
 
-##### <a name="L-valueOr"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-valueOr) [`L.valueOr(valueOut) ~> lens`](#L-valueOr "L.valueOr: s -> PLens s s")
+##### <a id="L-valueOr"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-valueOr) [`L.valueOr(valueOut) ~> lens`](#L-valueOr "L.valueOr: s -> PLens s s")
 
 `L.valueOr` is an asymmetric lens used to specify a default value in case the
 focus is `undefined` or `null`.  When set, `L.valueOr` behaves like the identity
@@ -1644,7 +1949,7 @@ L.remove(L.valueOr(0), 1)
 
 #### Adapting to data
 
-##### <a name="L-orElse"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-orElse) [`L.orElse(backupLens, primaryLens) ~> lens`](#L-orElse "L.orElse: (PLens s a, PLens s a) -> PLens s a")
+##### <a id="L-orElse"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-orElse) [`L.orElse(backupLens, primaryLens) ~> lens`](#L-orElse "L.orElse: (PLens s a, PLens s a) -> PLens s a")
 
 `L.orElse(backupLens, primaryLens)` acts like `primaryLens` when its view is not
 `undefined` and otherwise like `backupLens`.  You can use `L.orElse` on its own
@@ -1655,7 +1960,7 @@ for [`L.choice`](#L-choice), for example.
 
 #### Read-only mapping
 
-##### <a name="L-just"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-just) ~~[`L.just(maybeValue) ~> lens`](#L-just "L.just: Maybe a -> PLens s a")~~
+##### <a id="L-just"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-just) ~~[`L.just(maybeValue) ~> lens`](#L-just "L.just: Maybe a -> PLens s a")~~
 
 **WARNING: `L.just` is obsolete, just use e.g. [`R.always`](http://ramdajs.com/docs/#always).**
 
@@ -1672,7 +1977,7 @@ Note that `L.just(x)` is equivalent to [`L.to(R.always(x))`](#L-to).
 `L.just` can be seen as the unit function of the monad formed
 with [`L.chain`](#L-chain).
 
-##### <a name="L-to"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-to) ~~[`L.to((maybeValue, index) => maybeValue) ~> lens`](#L-to "L.to: ((a, Index) -> b) -> PLens a b")~~
+##### <a id="L-to"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-to) ~~[`L.to((maybeValue, index) => maybeValue) ~> lens`](#L-to "L.to: ((a, Index) -> b) -> PLens a b")~~
 
 **WARNING: `L.to` is obsolete, you can directly [`L.compose`](#L-compose) plain functions with optics.**
 
@@ -1691,7 +1996,7 @@ L.set(["x", L.to(x => x + 1)], 3, {x: 1})
 
 #### Transforming data
 
-##### <a name="L-pick"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-pick) [`L.pick({prop: lens, ...props}) ~> lens`](#L-pick "L.pick: {p1: PLens s a1, ...pls} -> PLens s {p1: a1, ...pls}")
+##### <a id="L-pick"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-pick) [`L.pick({prop: lens, ...props}) ~> lens`](#L-pick "L.pick: {p1: PLens s a1, ...pls} -> PLens s {p1: a1, ...pls}")
 
 `L.pick` creates a lens out of the given object template of lenses and allows
 one to pick apart a data structure and then put it back together.  When viewed,
@@ -1739,7 +2044,7 @@ Note that, when set, `L.pick` simply ignores any properties that the given
 template doesn't mention.  Also note that the underlying data structure need not
 be an object.
 
-##### <a name="L-replace"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-replace) [`L.replace(maybeValueIn, maybeValueOut) ~> lens`](#L-replace "L.replace: Maybe s -> Maybe s -> PLens s s")
+##### <a id="L-replace"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-replace) [`L.replace(maybeValueIn, maybeValueOut) ~> lens`](#L-replace "L.replace: Maybe s -> Maybe s -> PLens s s")
 
 `L.replace(maybeValueIn, maybeValueOut)`, when viewed, replaces the value
 `maybeValueIn` with `maybeValueOut` and vice versa when set.
@@ -1777,7 +2082,7 @@ undefined)` are inverses of each other.
 
 #### Operations on isomorphisms
 
-##### <a name="L-getInverse"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-getInverse) [`L.getInverse(isomorphism, maybeData) ~> maybeData`](#L-getInverse "L.getInverse: PIso a b -> Maybe b -> Maybe a")
+##### <a id="L-getInverse"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-getInverse) [`L.getInverse(isomorphism, maybeData) ~> maybeData`](#L-getInverse "L.getInverse: PIso a b -> Maybe b -> Maybe a")
 
 `L.getInverse` views through an isomorphism in the inverse direction.
 
@@ -1805,7 +2110,7 @@ L.getInverse("meaning", 42)
 
 #### Creating new isomorphisms
 
-##### <a name="L-iso"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-iso) [`L.iso(maybeData => maybeValue, maybeValue => maybeData) ~> isomorphism`](#L-iso "L.iso: (Maybe s -> Maybe a) -> (Maybe a -> Maybe s) -> PIso s a")
+##### <a id="L-iso"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-iso) [`L.iso(maybeData => maybeValue, maybeValue => maybeData) ~> isomorphism`](#L-iso "L.iso: (Maybe s -> Maybe a) -> (Maybe a -> Maybe s) -> PIso s a")
 
 `L.iso` creates a new primitive isomorphism.
 
@@ -1819,7 +2124,7 @@ L.get([negate, L.inverse(negate)], 112)
 
 #### Isomorphisms and combinators
 
-##### <a name="L-identity"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-identity) [`L.identity ~> isomorphism`](#L-identity "L.identity: PIso s s")
+##### <a id="L-identity"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-identity) [`L.identity ~> isomorphism`](#L-identity "L.identity: PIso s s")
 
 `L.identity` is the identity element of lens composition and also the identity
 isomorphism.  The following equations characterize `L.identity`:
@@ -1831,7 +2136,7 @@ L.modify(L.identity, f, x) = f(x)
   L.compose(l, L.identity) = l
 ```
 
-##### <a name="L-inverse"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-inverse) [`L.inverse(isomorphism) ~> isomorphism`](#L-inverse "L.inverse: PIso a b -> PIso b a")
+##### <a id="L-inverse"></a> [≡](#contents) [▶](https://calmm-js.github.io/partial.lenses/#L-inverse) [`L.inverse(isomorphism) ~> isomorphism`](#L-inverse "L.inverse: PIso a b -> PIso b a")
 
 `L.inverse` returns the inverse of the given isomorphism.  Note that this
 operation only makes sense on isomorphisms.
@@ -2032,7 +2337,7 @@ L.remove([values, L.when(x => x > "e")], sampleBST)
 // { key: 5, value: 'c', smaller: { key: 2, value: 'a' } }
 ```
 
-### <a name="interfacing"></a> Interfacing with Immutable.js
+### <a id="interfacing"></a> Interfacing with Immutable.js
 
 [Immutable.js](http://facebook.github.io/immutable-js/) is a popular library
 providing immutable data structures.  As argued
@@ -2316,7 +2621,7 @@ time.  The basic principles can be summarized in order of importance:
 
 ### Benchmarks
 
-Here are a few benchmark results on partial lenses (as `L` version 9.3.0) and
+Here are a few benchmark results on partial lenses (as `L` version 9.5.0) and
 some roughly equivalent operations using [Ramda](http://ramdajs.com/) (as `R`
 version 0.23.0), [Ramda Lens](https://github.com/ramda/ramda-lens) (as `P`
 version 0.1.1), and [Flunc Optics](https://github.com/flunc/optics) (as `O`
@@ -2324,111 +2629,119 @@ version 0.0.2).  As always with benchmarks, you should take these numbers with a
 pinch of salt and preferably try and measure your actual use cases!
 
 ```jsx
-   7,275,506/s     1.00x   R.reduceRight(add, 0, xs100)
-     422,412/s    17.22x   L.foldr(add, 0, L.elems, xs100)
-       4,118/s  1766.62x   O.Fold.foldrOf(O.Traversal.traversed, addC, 0, xs100)
+   7,526,988/s     1.00x   R.reduceRight(add, 0, xs100)
+     450,410/s    16.71x   L.foldr(add, 0, L.elems, xs100)
+       4,062/s  1852.95x   O.Fold.foldrOf(O.Traversal.traversed, addC, 0, xs100)
 
-      11,295/s     1.00x   R.reduceRight(add, 0, xs100000)
-          52/s   215.58x   L.foldr(add, 0, L.elems, xs100000)
+      11,221/s     1.00x   R.reduceRight(add, 0, xs100000)
+          56/s   201.49x   L.foldr(add, 0, L.elems, xs100000)
            0/s Infinityx   O.Fold.foldrOf(O.Traversal.traversed, addC, 0, xs100000) -- STACK OVERFLOW
 
-     707,796/s     1.00x   L.foldl(add, 0, L.elems, xs100)
-     194,767/s     3.63x   R.reduce(add, 0, xs100)
-       3,007/s   235.39x   O.Fold.foldlOf(O.Traversal.traversed, addC, 0, xs100)
+     646,713/s     1.00x   L.foldl(add, 0, L.elems, xs100)
+     204,137/s     3.17x   R.reduce(add, 0, xs100)
+       2,994/s   215.99x   O.Fold.foldlOf(O.Traversal.traversed, addC, 0, xs100)
 
-   3,627,844/s     1.00x   L.sum(L.elems, xs100)
-     509,734/s     7.12x   L.concat(Sum, L.elems, xs100)
-     125,415/s    28.93x   R.sum(xs100)
-      22,800/s   159.12x   P.sumOf(P.traversed, xs100)
-       4,517/s   803.09x   O.Fold.sumOf(O.Traversal.traversed, xs100)
+   3,527,147/s     1.00x   L.sum(L.elems, xs100)
+     524,546/s     6.72x   L.concat(Sum, L.elems, xs100)
+     126,979/s    27.78x   R.sum(xs100)
+      23,214/s   151.94x   P.sumOf(P.traversed, xs100)
+       4,303/s   819.69x   O.Fold.sumOf(O.Traversal.traversed, xs100)
 
-     538,009/s     1.00x   L.maximum(L.elems, xs100)
-       3,351/s   160.55x   O.Fold.maximumOf(O.Traversal.traversed, xs100)
+     561,951/s     1.00x   L.maximum(L.elems, xs100)
+       3,262/s   172.28x   O.Fold.maximumOf(O.Traversal.traversed, xs100)
 
-     145,128/s     1.00x   L.concat(Sum, [L.elems, L.elems, L.elems], xsss100)
-     143,695/s     1.01x   L.sum([L.elems, L.elems, L.elems], xsss100)
-       4,574/s    31.73x   P.sumOf(R.compose(P.traversed, P.traversed, P.traversed), xsss100)
-         856/s   169.64x   O.Fold.sumOf(R.compose(O.Traversal.traversed, O.Traversal.traversed, O.Traversal.traversed), xsss100)
+     139,464/s     1.00x   L.concat(Sum, [L.elems, L.elems, L.elems], xsss100)
+     139,119/s     1.00x   L.sum([L.elems, L.elems, L.elems], xsss100)
+       4,559/s    30.59x   P.sumOf(R.compose(P.traversed, P.traversed, P.traversed), xsss100)
+         889/s   156.80x   O.Fold.sumOf(R.compose(O.Traversal.traversed, O.Traversal.traversed, O.Traversal.traversed), xsss100)
 
-     246,482/s     1.00x   L.collect(L.elems, xs100)
-       3,636/s    67.79x   O.Fold.toListOf(O.Traversal.traversed, xs100)
+     260,326/s     1.00x   L.collect(L.elems, xs100)
+       3,644/s    71.44x   O.Fold.toListOf(O.Traversal.traversed, xs100)
 
-     111,316/s     1.00x   L.collect([L.elems, L.elems, L.elems], xsss100)
-       9,117/s    12.21x   R.chain(R.chain(R.identity), xsss100)
-         808/s   137.85x   O.Fold.toListOf(R.compose(O.Traversal.traversed, O.Traversal.traversed, O.Traversal.traversed), xsss100)
+     110,998/s     1.00x   L.collect([L.elems, L.elems, L.elems], xsss100)
+       9,253/s    12.00x   R.chain(R.chain(R.identity), xsss100)
+         792/s   140.23x   O.Fold.toListOf(R.compose(O.Traversal.traversed, O.Traversal.traversed, O.Traversal.traversed), xsss100)
 
-      66,767/s     1.00x   R.flatten(xsss100)
-      30,908/s     2.16x   L.collect(flatten, xsss100)
+      66,477/s     1.00x   R.flatten(xsss100)
+      31,028/s     2.14x   L.collect(flatten, xsss100)
 
-  13,940,837/s     1.00x   L.modify(L.elems, inc, xs)
-   1,853,343/s     7.52x   R.map(inc, xs)
-     422,973/s    32.96x   P.over(P.traversed, inc, xs)
-     391,323/s    35.62x   O.Setter.over(O.Traversal.traversed, inc, xs)
+  14,452,635/s     1.00x   L.modify(L.elems, inc, xs)
+   1,851,257/s     7.81x   R.map(inc, xs)
+     429,146/s    33.68x   P.over(P.traversed, inc, xs)
+     388,421/s    37.21x   O.Setter.over(O.Traversal.traversed, inc, xs)
 
-     418,401/s     1.00x   L.modify(L.elems, inc, xs1000)
-     119,801/s     3.49x   R.map(inc, xs1000)
-         395/s  1058.59x   O.Setter.over(O.Traversal.traversed, inc, xs1000) -- QUADRATIC
-         365/s  1146.58x   P.over(P.traversed, inc, xs1000) -- QUADRATIC
+     423,561/s     1.00x   L.modify(L.elems, inc, xs1000)
+     118,932/s     3.56x   R.map(inc, xs1000)
+         399/s  1062.77x   O.Setter.over(O.Traversal.traversed, inc, xs1000) -- QUADRATIC
+         370/s  1146.14x   P.over(P.traversed, inc, xs1000) -- QUADRATIC
 
-     151,463/s     1.00x   L.modify([L.elems, L.elems, L.elems], inc, xsss100)
-       9,609/s    15.76x   R.map(R.map(R.map(inc)), xsss100)
-       3,572/s    42.41x   P.over(R.compose(P.traversed, P.traversed, P.traversed), inc, xsss100)
-       2,953/s    51.30x   O.Setter.over(R.compose(O.Traversal.traversed, O.Traversal.traversed, O.Traversal.traversed), inc, xsss100)
+     155,452/s     1.00x   L.modify([L.elems, L.elems, L.elems], inc, xsss100)
+       8,907/s    17.45x   R.map(R.map(R.map(inc)), xsss100)
+       3,579/s    43.43x   P.over(R.compose(P.traversed, P.traversed, P.traversed), inc, xsss100)
+       2,936/s    52.94x   O.Setter.over(R.compose(O.Traversal.traversed, O.Traversal.traversed, O.Traversal.traversed), inc, xsss100)
 
-  31,767,512/s     1.00x   L.get(1, xs)
-   3,888,632/s     8.17x   R.nth(1, xs)
-   1,503,827/s    21.12x   R.view(l_1, xs)
+  31,374,592/s     1.00x   L.get(1, xs)
+   3,907,663/s     8.03x   R.nth(1, xs)
+   1,487,764/s    21.09x   R.view(l_1, xs)
 
-  22,896,004/s     1.00x   L.set(1, 0, xs)
-   7,155,837/s     3.20x   R.update(1, 0, xs)
-     979,416/s    23.38x   R.set(l_1, 0, xs)
+  22,807,233/s     1.00x   L.set(1, 0, xs)
+   7,044,724/s     3.24x   R.update(1, 0, xs)
+     963,954/s    23.66x   R.set(l_1, 0, xs)
 
-  28,302,290/s     1.00x   L.get("y", xyz)
-  23,620,542/s     1.20x   R.prop("y", xyz)
-   2,483,240/s    11.40x   R.view(l_y, xyz)
+  29,085,526/s     1.00x   L.get("y", xyz)
+  24,856,115/s     1.17x   R.prop("y", xyz)
+   2,444,091/s    11.90x   R.view(l_y, xyz)
 
-  10,967,392/s     1.00x   L.set("y", 0, xyz)
-   7,377,181/s     1.49x   R.assoc("y", 0, xyz)
-   1,270,656/s     8.63x   R.set(l_y, 0, xyz)
+  11,058,022/s     1.00x   L.set("y", 0, xyz)
+   7,425,401/s     1.49x   R.assoc("y", 0, xyz)
+   1,360,618/s     8.13x   R.set(l_y, 0, xyz)
 
-  13,981,807/s     1.00x   L.get([0,"x",0,"y"], axay)
-  13,896,741/s     1.01x   R.path([0,"x",0,"y"], axay)
-   2,331,860/s     6.00x   R.view(l_0x0y, axay)
-     478,439/s    29.22x   R.view(l_0_x_0_y, axay)
+  13,694,565/s     1.00x   R.path([0,"x",0,"y"], axay)
+  13,404,788/s     1.02x   L.get([0,"x",0,"y"], axay)
+   2,272,396/s     6.03x   R.view(l_0x0y, axay)
+     477,184/s    28.70x   R.view(l_0_x_0_y, axay)
 
-   4,028,103/s     1.00x   L.set([0,"x",0,"y"], 0, axay)
-     809,897/s     4.97x   R.assocPath([0,"x",0,"y"], 0, axay)
-     510,440/s     7.89x   R.set(l_0x0y, 0, axay)
-     317,817/s    12.67x   R.set(l_0_x_0_y, 0, axay)
+   3,905,127/s     1.00x   L.set([0,"x",0,"y"], 0, axay)
+     847,789/s     4.61x   R.assocPath([0,"x",0,"y"], 0, axay)
+     527,980/s     7.40x   R.set(l_0x0y, 0, axay)
+     307,247/s    12.71x   R.set(l_0_x_0_y, 0, axay)
 
-   3,747,917/s     1.00x   L.modify([0,"x",0,"y"], inc, axay)
-     544,649/s     6.88x   R.over(l_0x0y, inc, axay)
-     333,884/s    11.23x   R.over(l_0_x_0_y, inc, axay)
+   3,890,894/s     1.00x   L.modify([0,"x",0,"y"], inc, axay)
+     567,956/s     6.85x   R.over(l_0x0y, inc, axay)
+     339,361/s    11.47x   R.over(l_0_x_0_y, inc, axay)
 
-  23,905,912/s     1.00x   L.remove(1, xs)
-   3,147,056/s     7.60x   R.remove(1, 1, xs)
+  24,285,130/s     1.00x   L.remove(1, xs)
+   3,100,672/s     7.83x   R.remove(1, 1, xs)
 
-  11,582,236/s     1.00x   L.remove("y", xyz)
-   2,595,063/s     4.46x   R.dissoc("y", xyz)
+  11,623,646/s     1.00x   L.remove("y", xyz)
+   2,664,042/s     4.36x   R.dissoc("y", xyz)
 
-  15,764,374/s     1.00x   L.get(["x","y","z"], xyzn)
-  14,310,551/s     1.10x   R.path(["x","y","z"], xyzn)
-   2,308,285/s     6.83x   R.view(l_xyz, xyzn)
-     810,810/s    19.44x   R.view(l_x_y_z, xyzn)
-     163,392/s    96.48x   O.Getter.view(o_x_y_z, xyzn)
+  14,618,391/s     1.00x   L.get(["x","y","z"], xyzn)
+  13,164,071/s     1.11x   R.path(["x","y","z"], xyzn)
+   2,319,575/s     6.30x   R.view(l_xyz, xyzn)
+     831,855/s    17.57x   R.view(l_x_y_z, xyzn)
+     161,823/s    90.34x   O.Getter.view(o_x_y_z, xyzn)
 
-   4,473,723/s     1.00x   L.set(["x","y","z"], 0, xyzn)
-   1,420,268/s     3.15x   R.assocPath(["x","y","z"], 0, xyzn)
-     708,582/s     6.31x   R.set(l_xyz, 0, xyzn)
-     522,116/s     8.57x   R.set(l_x_y_z, 0, xyzn)
-     215,602/s    20.75x   O.Setter.set(o_x_y_z, 0, xyzn)
+   4,646,799/s     1.00x   L.set(["x","y","z"], 0, xyzn)
+   1,427,192/s     3.26x   R.assocPath(["x","y","z"], 0, xyzn)
+     748,830/s     6.21x   R.set(l_xyz, 0, xyzn)
+     536,727/s     8.66x   R.set(l_x_y_z, 0, xyzn)
+     196,829/s    23.61x   O.Setter.set(o_x_y_z, 0, xyzn)
 
-   4,120,647/s     1.00x   L.remove(50, xs100)
-   1,829,468/s     2.25x   R.remove(50, 1, xs100)
+   1,042,861/s     1.00x   R.find(x => x > 3, xs100)
+     186,667/s     5.59x   L.firstAs(x => x > 3 ? x : undefined, L.elems, xs100)
+       2,757/s   378.23x   O.Fold.findOf(O.Traversal.traversed, x => x > 3, xs100)
 
-   4,386,731/s     1.00x   L.set(50, 2, xs100)
-   1,702,332/s     2.58x   R.update(50, 2, xs100)
-     678,594/s     6.46x   R.set(l_50, 2, xs100)
+   4,777,497/s     1.00x   L.firstAs(x => x < 3 ? x : undefined, L.elems, xs100)
+   3,736,486/s     1.28x   R.find(x => x < 3, xs100)
+       2,881/s  1658.42x   O.Fold.findOf(O.Traversal.traversed, x => x < 3, xs100) -- NO SHORTCUT EVALUATION
+
+   4,073,079/s     1.00x   L.remove(50, xs100)
+   1,824,964/s     2.23x   R.remove(50, 1, xs100)
+
+   4,309,022/s     1.00x   L.set(50, 2, xs100)
+   1,699,553/s     2.54x   R.update(50, 2, xs100)
+     581,664/s     7.41x   R.set(l_50, 2, xs100)
 ```
 
 Various operations on *partial lenses have been optimized for common cases*, but

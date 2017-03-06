@@ -116,6 +116,8 @@ const everywhere = [L.optional, L.lazy(rec => {
 
 const xyzs = L.seq("x","y","z")
 
+const pi = [3,1,4,1,5]
+
 const Benchmark = require("benchmark")
 Benchmark.options.maxTime = Number(process.argv[2]) || Benchmark.options.maxTime
 
@@ -241,6 +243,14 @@ R.forEach(bs => {
     `R.set(l_x_y_z, 0, xyzn)`,
     `R.set(l_xyz, 0, xyzn)`,
   ], [
+    `L.firstAs(x => x > 3 ? x : undefined, L.elems, xs100)`,
+    `R.find(x => x > 3, xs100)`,
+    `O.Fold.findOf(O.Traversal.traversed, x => x > 3, xs100)`,
+  ], [
+    `L.firstAs(x => x < 3 ? x : undefined, L.elems, xs100)`,
+    `R.find(x => x < 3, xs100)`,
+    [`O.Fold.findOf(O.Traversal.traversed, x => x < 3, xs100)`, "NO SHORTCUT EVALUATION"],
+  ], [
     `L.remove(50, xs100)`,
     `R.remove(50, 1, xs100)`,
   ], [
@@ -310,6 +320,10 @@ R.forEach(bs => {
     `L.concatAs(toList, List, L.elems, xs100)`,
   ], [
     `L.modify(flatten, inc, xsss100)`,
+  ], [
+    `L.firstAs(x => x > 3 ? x : undefined, L.elems, pi)`,
+    `R.find(x => x > 3, pi)`,
+    `O.Fold.findOf(O.Traversal.traversed, x => x > 3, pi)`,
   ], [
     `L.get(d0x0y, axay)`,
   ], [

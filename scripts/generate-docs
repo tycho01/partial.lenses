@@ -2,7 +2,8 @@
 
 const title = "Try Partial Lenses with KLIPSE"
 const icon = "https://avatars1.githubusercontent.com/u/17234211"
-const blob = "https://github.com/calmm-js/partial.lenses/blob/master/"
+const github = "https://github.com/calmm-js/partial.lenses"
+const blob = `${github}/blob/master/`
 const hljsStyle = "googlecode"
 
 const I = require("infestines")
@@ -22,14 +23,17 @@ marked.setOptions({
   smartypants: false
 })
 
-const body = I.seq(fs.readFileSync("README.md"),
-                   R.toString,
-                   R.replace(/([^ ])\bconst\b/g, "$1var"),
-                   R.replace(/\/\/ .*/g, ""),
-                   R.replace(/\[([^\]]*)\]\(\.\/([^)]*)\)/g, `[$1](${blob}$2)`),
-                   marked,
-                   R.replace(/<code class="lang-([a-z]*)">/g,
-                             '<code class="hljs lang-$1\">'))
+const body = I.seq(
+  fs.readFileSync("README.md"),
+  R.toString,
+  R.replace(/([^ ])\bconst\b/g, "$1var"),
+  R.replace(/\/\/ .*/g, ""),
+  R.replace(/\[([^\]]*)\]\(\.\/([^)]*)\)/g, `[$1](${blob}$2)`),
+  R.replace(/\[▶\]\(https:\/\/calmm-js\.github\.io\/partial\.lenses\/\#([a-zA-Z-]*)\)/g,
+            `[■](${github}#$1)`),
+  marked,
+  R.replace(/<code class="lang-([a-z]*)">/g,
+            '<code class="hljs lang-$1\">'))
 
 fs.writeFileSync("docs/index.html",
 `<!doctype html>
