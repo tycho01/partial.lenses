@@ -1,0 +1,1176 @@
+test/typedefs.ts: Unexpected error
+  Duplicate identifier 'L'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find namespace 'L'.
+
+test/typedefs.ts: Unexpected error
+  Duplicate identifier 'L'.
+
+test/typedefs.ts:R.identity({
+        GetSet: test( L.set(lens, L.get(lens, data), data), data ),
+        SetGet: test( L.get(lens, L.set(lens, elem, data)), elem )
+    })
+
+Expected type
+  { GetSet: true, SetGet: true }
+but got:
+  any
+
+test/typedefs.ts:L.modify(["elems", 0, "x"], R.inc, {elems: [{x: 1, y: 2}, {x: 3, y: 4}]})
+
+Expected type
+  { elems: [ { x: 2, y: 2 }, { x: 3, y: 4 } ] }
+but got:
+  any
+
+test/typedefs.ts:L.modify(["elems", L.elems, "x"],
+         R.dec,
+         {elems: [{x: 1, y: 2}, {x: 3, y: 4}]})
+
+Expected type
+  { elems: [ { x: 0, y: 2 }, { x: 2, y: 4 } ] }
+but got:
+  any
+
+test/typedefs.ts:L.remove([0, "x"], [{x: 1}, {x: 2}, {x: 3}])
+
+Expected type
+  [ { x: 2 }, { x: 3 } ]
+but got:
+  any
+
+test/typedefs.ts:L.remove([L.elems, "x", L.when(x => x > 1)], [{x: 1}, {x: 2, y: 1}, {x: 3}])
+
+Expected type
+  [ { x: 1 }, { y: 1 } ]
+but got:
+  any
+
+test/typedefs.ts:L.set(["a", 0, "x"], 11, {id: "z"})
+
+Expected type
+  {a: [{x: 11}], id: 'z'}
+but got:
+  any
+
+test/typedefs.ts:L.set([L.elems, "x", L.when(x => x > 1)], -1, [{x: 1}, {x: 2, y: 1}, {x: 3}])
+
+Expected type
+  [ { x: 1 }, { x: -1, y: 1 }, { x: -1 } ]
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'l'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'l'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'os'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'os'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'o'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'o'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'os'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'os'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'o'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'o'.
+
+test/typedefs.ts:L.set(["a", 1], "a", {a: ["b", "c"]})
+
+Expected type
+  { a: [ 'b', 'a' ] }
+but got:
+  any
+
+test/typedefs.ts:L.get(["a", 1], {a: ["b", "c"]})
+
+Expected type
+  'c'
+but got:
+  any
+
+test/typedefs.ts:L.get(["x", x => x + 1], {x: 1})
+
+Expected type
+  2
+but got:
+  any
+
+test/typedefs.ts:L.set(["x", x => x + 1], 3, {x: 1})
+
+Expected type
+  { x: 1 }
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'optic'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'toOptic'.
+
+test/typedefs.ts:L.modify([L.elems, L.choice("a", "d")], R.inc, [{R: 1}, {a: 1}, {d: 2}])
+
+Expected type
+  [ { R: 1 }, { a: 2 }, { d: 3 } ]
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Initializer provides no value for this binding element and the binding element has no default value.
+
+test/typedefs.ts: Unexpected error
+  Initializer provides no value for this binding element and the binding element has no default value.
+
+test/typedefs.ts:L.get(majorAxis, {x: 1, y: 2})
+
+Expected type
+  2
+but got:
+  any
+
+test/typedefs.ts:L.get(majorAxis, {x: -3, y: 1})
+
+Expected type
+  -3
+but got:
+  any
+
+test/typedefs.ts:L.modify(majorAxis, R.negate, {x: 2, y: -3})
+
+Expected type
+  { x: 2, y: 3 }
+but got:
+  any
+
+test/typedefs.ts:L.set([L.elems, "x"], 3, [{x: 1}, {y: 2}])
+
+Expected type
+  [ { x: 3 }, { y: 2, x: 3 } ]
+but got:
+  any
+
+test/typedefs.ts:L.set([L.elems, "x", L.optional], 3, [{x: 1}, {y: 2}])
+
+Expected type
+  [ { x: 3 }, { y: 2 } ]
+but got:
+  any
+
+test/typedefs.ts:L.modify([L.elems, L.when(x => x > 0)], R.negate, [0, -1, 2, -3, 4])
+
+Expected type
+  [ 0, -1, -2, -3, -4 ]
+but got:
+  any
+
+test/typedefs.ts:L.collect([L.elems,
+        L.choose(x => (R.is(Array, x) ? L.elems :
+                        R.is(Object, x) ? "x" :
+                        L.zero))],
+        [1, {x: 2}, [3,4]])
+
+Expected type
+  [ 2, 3, 4 ]
+but got:
+  any
+
+test/typedefs.ts:L.collect(flatten, [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+
+Expected type
+  [ 1, 2, 3, 4, 5, 6 ]
+but got:
+  any
+
+test/typedefs.ts:L.modify(flatten, x => x+1, [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+
+Expected type
+  [ [ [ 2 ], 3 ], { y: 4 }, [ { l: 5, r: [ 6 ] }, { x: 7 } ] ]
+but got:
+  any
+
+test/typedefs.ts:L.remove([flatten, L.when(x => 3 <= x && x <= 4)],
+        [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+
+Expected type
+  [ [ [ 1 ], 2 ], [ { r: [ 5 ] }, { x: 6 } ] ]
+but got:
+  any
+
+test/typedefs.ts:L.get(["x", L.log()], {x: 10})
+
+Expected type
+  10
+but got:
+  any
+
+test/typedefs.ts:L.set(["x", L.log("x")], "11", {x: 10})
+
+Expected type
+  { x: '11' }
+but got:
+  any
+
+test/typedefs.ts:L.set(["x", L.log("%s x: %j")], "11", {x: 10})
+
+Expected type
+  { x: '11' }
+but got:
+  any
+
+test/typedefs.ts:L.modify(L.seq(L.identity, L.identity, L.identity), x => [x], 1)
+
+Expected type
+  [ [ [ 1 ] ] ]
+but got:
+  any
+
+test/typedefs.ts:L.modify(everywhere, x => [x], {xs: [{x: 1}, {x: 2}]})
+
+Expected type
+  [ {xs: [ [ [ { x: [ 1 ] } ], [ { x: [ 2 ] } ] ] ] } ]
+but got:
+  any
+
+test/typedefs.ts:L.concat(Sum, L.elems, [1, 2, 3])
+
+Expected type
+  6
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'id'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'or'.
+
+test/typedefs.ts: Unexpected error
+  Property or signature expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'any'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'product'.
+
+test/typedefs.ts:L.concatAs(x => x, Sum, L.elems, [1, 2, 3])
+
+Expected type
+  6
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'sum'.
+
+test/typedefs.ts:L.concatAs(R.pipe(R.negate, toCollect),
+        Collect,
+        ["xs", L.elems, "x"],
+        {xs: [{x: 1}, {x: 2}]})
+
+Expected type
+  [ -1, -2 ]
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'template'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'branch'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'A'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'elems'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'xi2yA'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'xs'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name '_'.
+
+test/typedefs.ts:L.all(x => 1 <= x && x <= 6,
+      flatten,
+      [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+
+Expected type
+  true
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'flatten'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'values'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'A'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'xi2yA'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'xs'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name '_'.
+
+test/typedefs.ts: Unexpected error
+  ',' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'maybeData'.
+
+test/typedefs.ts: Unexpected error
+  'Optic' only refers to a type, but is being used as a value here.
+
+test/typedefs.ts: Unexpected error
+  ',' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'optic'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'get'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  'MaybeValue' only refers to a type, but is being used as a value here.
+
+test/typedefs.ts: Unexpected error
+  'MaybeValue' only refers to a type, but is being used as a value here.
+
+test/typedefs.ts:L.and(L.elems, [])
+
+Expected type
+  true
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'lens'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'get'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'set'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'xi2yF'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'i'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'F'.
+
+test/typedefs.ts: Unexpected error
+  Left side of comma operator is unused and has no side effects.
+
+test/typedefs.ts: Unexpected error
+  Left side of comma operator is unused and has no side effects.
+
+test/typedefs.ts: Unexpected error
+  Left side of comma operator is unused and has no side effects.
+
+test/typedefs.ts:L.any(x => x > 5,
+      flatten,
+      [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+
+Expected type
+  true
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'flatten'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'template'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'augment'.
+
+test/typedefs.ts:L.collect(["xs", L.elems, "x"], {xs: [{x: 1}, {x: 2}]})
+
+Expected type
+  [ 1, 2 ]
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'inn'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'required'.
+
+test/typedefs.ts:L.collectAs(R.negate, ["xs", L.elems, "x"], {xs: [{x: 1}, {x: 2}]})
+
+Expected type
+  [ -1, -2 ]
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'xi2x'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'normalize'.
+
+test/typedefs.ts:L.count([L.elems, "x"], [{x: 11}, {y: 12}])
+
+Expected type
+  1
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'append'.
+
+test/typedefs.ts:L.first([L.elems, "y"], [{x:1},{y:2},{z:3}])
+
+Expected type
+  2
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'filter'.
+
+test/typedefs.ts:L.firstAs(x => x > 3 ? -x : undefined, L.elems, [3,1,4,1,5])
+
+Expected type
+  -4
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'findWith'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'ls'.
+
+test/typedefs.ts:all(x => x < 9,
+        flatten,
+        [[[1], 2], {y: 3}, [{l: 4, r: [5]}, {x: 6}]])
+
+Expected type
+  true
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Declaration or statement expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'T'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'number'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'index'.
+
+test/typedefs.ts: Unexpected error
+  ')' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'T'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'flatten'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'T'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'begin'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'end'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'slice'.
+
+test/typedefs.ts:L.foldl((x, y) => x + y, 0, L.elems, [1,2,3])
+
+Expected type
+  6
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'props'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'removable'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'ps'.
+
+test/typedefs.ts:L.foldr((x, y) => x * y, 1, L.elems, [1,2,3])
+
+Expected type
+  6
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'valueOr'.
+
+test/typedefs.ts:L.maximum(L.elems, [1,2,3])
+
+Expected type
+  3
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'orElse'.
+
+test/typedefs.ts:L.minimum(L.elems, [1,2,3])
+
+Expected type
+  1
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'to'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'just'.
+
+test/typedefs.ts:L.or(L.elems, [])
+
+Expected type
+  false
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'template'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'pick'.
+
+test/typedefs.ts:L.product(L.elems, [1,2,3])
+
+Expected type
+  6
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'replace'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'inn'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'out'.
+
+test/typedefs.ts:L.sum(L.elems, [1,2,3])
+
+Expected type
+  6
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'iso'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'bwd'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'fwd'.
+
+test/typedefs.ts: Unexpected error
+  ';' expected.
+
+test/typedefs.ts:L.collect(L.branch({first: L.elems, second: L.identity}),
+          {first: ["x"], second: "y"})
+
+Expected type
+  [ 'x', 'y' ]
+but got:
+  any
+
+test/typedefs.ts:L.modify([L.pick({x: 0, z: 2}),
+          L.branch({x: L.identity, z: L.identity})],
+         R.negate,
+         [1, 2, 3])
+
+Expected type
+  [ -1, 2, -3 ]
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'identity'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'inverse'.
+
+test/typedefs.ts: Unexpected error
+  Expression expected.
+
+test/typedefs.ts:L.modify(["xs", L.elems, "x"], R.inc, {xs: [{x: 1}, {x: 2}]})
+
+Expected type
+  { xs: [ { x: 2 }, { x: 3 } ] }
+but got:
+  any
+
+test/typedefs.ts:L.modify([L.rewrite(xs => Int8Array.from(xs)), L.elems],
+         R.inc,
+         Int8Array.from([-1,4,0,2,4]))
+
+Expected type
+  Int8Array [ 0, 5, 1, 3, 5 ]
+but got:
+  any
+
+test/typedefs.ts:L.modify(L.values, R.negate, {a: 1, b: 2, c: 3})
+
+Expected type
+  { a: -1, b: -2, c: -3 }
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Property 'assign' does not exist on type 'ObjectConstructor'.
+
+test/typedefs.ts:L.modify([L.rewrite(objectTo(XYZ)), L.values],
+        R.negate,
+        new XYZ(1,2,3))
+
+Expected type
+  XYZ { x: -1, y: -2, z: -3 }
+but got:
+  any
+
+test/typedefs.ts:L.get("y", {x: 112, y: 101})
+
+Expected type
+  101
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Initializer provides no value for this binding element and the binding element has no default value.
+
+test/typedefs.ts: Unexpected error
+  Initializer provides no value for this binding element and the binding element has no default value.
+
+test/typedefs.ts:L.get(timesAsDuration,
+        {start: "2016-12-07T09:39:02.451Z",
+        end: moment("2016-12-07T09:39:02.451Z").add(10, "hours").toISOString()})
+
+Expected type
+  "PT10H"
+but got:
+  any
+
+test/typedefs.ts:L.set(timesAsDuration,
+        "PT10H",
+        {start: "2016-12-07T09:39:02.451Z",
+        end: "2016-12-07T09:39:02.451Z"})
+
+Expected type
+  { end: '2016-12-07T19:39:02.451Z', start: '2016-12-07T09:39:02.451Z' }
+but got:
+  any
+
+test/typedefs.ts:L.modify(L.augment({y: r => r.x + 1}),
+         r => ({x: r.x + r.y, y: 2, z: r.x - r.y}),
+         {x: 1})
+
+Expected type
+  { x: 3, z: -1 }
+but got:
+  any
+
+test/typedefs.ts:L.get(["items", L.defaults([])], {})
+
+Expected type
+  []
+but got:
+  any
+
+test/typedefs.ts:L.get(["items", L.defaults([])], {items: [1, 2, 3]})
+
+Expected type
+  [ 1, 2, 3 ]
+but got:
+  any
+
+test/typedefs.ts:L.set(["items", L.defaults([])], [], {items: [1, 2, 3]})
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.get(["x", L.define(null)], {y: 10})
+
+Expected type
+  null
+but got:
+  any
+
+test/typedefs.ts:L.set(["x", L.define(null)], undefined, {y: 10})
+
+Expected type
+  { y: 10, x: null }
+but got:
+  any
+
+test/typedefs.ts:L.remove(["items", 0], {items: [1]})
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.remove([L.required({}), "items", 0], {items: [1]})
+
+Expected type
+  {}
+but got:
+  any
+
+test/typedefs.ts:L.remove(["items", L.required([]), 0], {items: [1]})
+
+Expected type
+  { items: [] }
+but got:
+  any
+
+test/typedefs.ts:L.set(1, "a", "LoLa")
+
+Expected type
+  [ 'L', 'a', 'L', 'a' ]
+but got:
+  any
+
+test/typedefs.ts:L.set([L.rewrite(R.join("")), 1], "a", "LoLa")
+
+Expected type
+  'LaLa'
+but got:
+  any
+
+test/typedefs.ts:L.get(L.append, ["x"])
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.set(L.append, "x", undefined)
+
+Expected type
+  [ 'x' ]
+but got:
+  any
+
+test/typedefs.ts:L.set(L.append, "x", ["z", "y"])
+
+Expected type
+  [ 'z', 'y', 'x' ]
+but got:
+  any
+
+test/typedefs.ts:L.set(L.filter(x => x <= "2"), "abcd", "3141592")
+
+Expected type
+  [ 'a', 'b', 'c', 'd', '3', '4', '5', '9' ]
+but got:
+  any
+
+test/typedefs.ts:L.remove(L.find(x => x <= 2), [3,1,4,1,5,9,2])
+
+Expected type
+  [ 3, 4, 1, 5, 9, 2 ]
+but got:
+  any
+
+test/typedefs.ts:L.get(L.findWith("x"), [{z: 6}, {x: 9}, {y: 6}])
+
+Expected type
+  9
+but got:
+  any
+
+test/typedefs.ts:L.set(L.findWith("x"), 3, [{z: 6}, {x: 9}, {y: 6}])
+
+Expected type
+  [ { z: 6 }, { x: 3 }, { y: 6 } ]
+but got:
+  any
+
+test/typedefs.ts:L.set(2, "z", ["x", "y", "c"])
+
+Expected type
+  [ 'x', 'y', 'z' ]
+but got:
+  any
+
+test/typedefs.ts:L.remove(0, ["a", "b"])
+
+Expected type
+  [ 'b' ]
+but got:
+  any
+
+test/typedefs.ts:L.remove(0, ["b"])
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.remove(["elems", 0], {elems: ["b"], some: "thing"})
+
+Expected type
+  { some: 'thing' }
+but got:
+  any
+
+test/typedefs.ts:L.remove([L.required([]), 0], ["a", "b"])
+
+Expected type
+  [ 'b' ]
+but got:
+  any
+
+test/typedefs.ts:L.remove([L.required([]), 0], ["b"])
+
+Expected type
+  []
+but got:
+  any
+
+test/typedefs.ts:L.remove(["elems", L.required([]), 0], {elems: ["b"], some: "thing"})
+
+Expected type
+  { elems: [], some: 'thing' }
+but got:
+  any
+
+test/typedefs.ts:L.remove(L.required([]), [])
+
+Expected type
+  []
+but got:
+  any
+
+test/typedefs.ts:L.get(L.required([]), [])
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.get(L.slice(1, -1), [1,2,3,4])
+
+Expected type
+  [ 2, 3 ]
+but got:
+  any
+
+test/typedefs.ts:L.set(L.slice(-2, undefined), [0], [1,2,3,4])
+
+Expected type
+  [ 1, 2, 0 ]
+but got:
+  any
+
+test/typedefs.ts:L.get("y", {x: 1, y: 2, z: 3})
+
+Expected type
+  2
+but got:
+  any
+
+test/typedefs.ts:L.set("y", -2, {x: 1, y: 2, z: 3})
+
+Expected type
+  { x: 1, y: -2, z: 3 }
+but got:
+  any
+
+test/typedefs.ts:L.set([L.rewrite(objectTo(XYZ)), "z"], 3, new XYZ(3,1,4))
+
+Expected type
+  XYZ { x: 3, y: 1, z: 3 }
+but got:
+  any
+
+test/typedefs.ts:L.set(L.props("x", "y"), {x: 4}, {x: 1, y: 2, z: 3})
+
+Expected type
+  { x: 4, z: 3 }
+but got:
+  any
+
+test/typedefs.ts:L.remove("x", {x: 1, y: 2})
+
+Expected type
+  { y: 2 }
+but got:
+  any
+
+test/typedefs.ts:L.remove([L.removable("x"), "x"], {x: 1, y: 2})
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.get(L.valueOr(0), null)
+
+Expected type
+  0
+but got:
+  any
+
+test/typedefs.ts:L.set(L.valueOr(0), 0, 1)
+
+Expected type
+  0
+but got:
+  any
+
+test/typedefs.ts:L.remove(L.valueOr(0), 1)
+
+Expected type
+  undefined
+but got:
+  any
+
+test/typedefs.ts:L.get(sanitize, sampleFlat)
+
+Expected type
+  { pos: { x: 1, y: 2 }, vel: { x: 1, y: 0 } }
+but got:
+  any
+
+test/typedefs.ts:L.modify([sanitize, "pos", "x"], R.add(5), sampleFlat)
+
+Expected type
+  { px: 6, py: 2, vx: 1, vy: 0 }
+but got:
+  any
+
+test/typedefs.ts:L.get(L.replace(1, 2), 1)
+
+Expected type
+  2
+but got:
+  any
+
+test/typedefs.ts:L.set(L.replace(1, 2), 2, 0)
+
+Expected type
+  1
+but got:
+  any
+
+test/typedefs.ts:L.getInverse(offBy1, 1)
+
+Expected type
+  0
+but got:
+  any
+
+test/typedefs.ts:L.getInverse("meaning", 42)
+
+Expected type
+  { meaning: 42 }
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'iso'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'iso'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'iso'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'y'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'y'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'iso'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'expect'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'expect'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'expect'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'expect'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'expect'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'expect'.
+
+test/typedefs.ts:L.modify([uriComponent,
+        jsonString,
+        "bottle",
+        0,
+        reverseString,
+        L.rewrite(R.join("")),
+        0],
+        R.toUpper,
+        "%7B%22bottle%22%3A%5B%22egassem%22%5D%7D")
+
+Expected type
+  "%7B%22bottle%22%3A%22egasseM%22%7D"
+but got:
+  any
+
+test/typedefs.ts:L.set([L.complement, L.log()],
+      "Could be anything truthy",
+      "Also converted to bool")
+
+Expected type
+  false
+but got:
+  any
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'f'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'f'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'x'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'l'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'l'.
+
+test/typedefs.ts: Unexpected error
+  The left-hand side of an assignment expression must be a variable or a property access.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'l'.
+
+test/typedefs.ts: Unexpected error
+  Cannot find name 'l'.
+
+test/typedefs.ts:L.get(L.inverse(offBy1), 1)
+
+Expected type
+  0
+but got:
+  any
+
+test/typedefs.ts: 0 / 241 checks passed.

@@ -16,7 +16,8 @@
     "lint": "eslint src test",
     "prepublish": "npm run lint && npm run test && npm run dist",
     "report-coverage": "nyc report --reporter=lcov > coverage.lcov && codecov",
-    "test": "nyc mocha"
+    "test": "nyc mocha",
+    "types": "echo testing types... && bash test.sh"
   },
   "repository": {
     "type": "git",
@@ -76,6 +77,8 @@
     "nyc": "^10.1.2",
     "ramda": "^0.23.0",
     "sprintf-js": "^1.0.3",
+    "typescript": "^2.2.1",
+    "typings-checker": "github:tycho01/typings-checker",
     "uglify-js": "^2.8.12",
     "uglifyify": "^3.0.4",
     "watch-run": "^1.2.5"
