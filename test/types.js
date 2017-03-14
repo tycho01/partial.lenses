@@ -122,6 +122,8 @@ export const collectAs = T.fn([T.fn([T_maybeData, T_index], T_maybeData),
                                T_maybeData],
                               T.array(T_data))
 
+export const count = T.fn([T_traversal, T_maybeData], T.number)
+
 export const firstAs =
   T.fn([T.fn([T_maybeData, T_index], T.any),
         T_traversal,
@@ -142,8 +144,8 @@ export const minimum = T.fn([T_traversal, T_maybeData], T.any)
 
 export const or = T.fn([T_traversal, T_maybeData], T.boolean)
 
-export const product = T.fn([T_traversal, T_maybeData], T.number)
-export const sum = product
+export const product = count
+export const sum = count
 
 // Creating new traversals
 
@@ -222,5 +224,6 @@ export const iso = T.fn([T.fn([T_maybeData], T_maybeData),
 
 // Isomorphisms and combinators
 
+export const complement = T_isomorphism
 export const identity = T_isomorphism
 export const inverse = T.fn([T_isomorphism], T_isomorphism)

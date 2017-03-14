@@ -155,9 +155,11 @@ describe("arities", () => {
     choose: 1,
     collect: 2,
     collectAs: 3,
+    complement: 4,
     compose: 0,
     concat: 3,
     concatAs: 4,
+    count: 2,
     defaults: 1,
     define: 1,
     elems: 4,
@@ -598,6 +600,8 @@ describe("folds", () => {
          [[[0,3],2],1])
   testEq(`L.foldl((x,y) => [x,y], 0, [L.elems, L.elems], [[1,2],[3]])`,
          [[[0,1],2],3])
+  testEq(`L.count([L.elems, L.choice("x","y")], [{x:11}, {z:33}, {y:22}])`, 2)
+  testEq(`L.count(flatten, [[],{},[[[],[{x:[],y:[]}],{}]]])`, 0)
   ;[`foldl`, `foldr`].forEach(fold => {
     testEq(`X.${fold}((x,y) => x+y, 0, X.elems, a100000)`,
            100000)
@@ -648,6 +652,13 @@ describe("L.inverse", () => {
   testEq(`L.get(L.inverse(offBy1), 1)`, 0)
   testEq(`L.getInverse(L.inverse(offBy1), 0)`, 1)
   testEq(`L.remove(["x", L.inverse(offBy1)], {x:1})`, undefined)
+})
+
+describe("L.complement", () => {
+  testEq(`L.get(L.complement, undefined)`, undefined)
+  testEq(`L.set(L.complement, undefined, true)`, undefined)
+  testEq(`L.get(L.complement, true)`, false)
+  testEq(`L.set(L.complement, true, undefined)`, false)
 })
 
 describe("L.branch", () => {

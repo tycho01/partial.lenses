@@ -30,6 +30,8 @@ const cpair = x => xs => [x, xs]
 
 const unto = c => x => void 0 !== x ? x : c
 
+const notPartial = x => void 0 !== x ? !x : x
+
 const seemsArrayLike = x =>
   x instanceof Object && (x = x.length, x === (x >> 0) && 0 <= x) ||
   isString(x)
@@ -69,6 +71,7 @@ function ConcatOf(ap, empty, delay) {
 }
 
 const Monoid = (concat, empty) => ({concat, empty: () => empty})
+const Sum = Monoid((y, x) => x + y, 0)
 
 const Mum = ord =>
   Monoid((y, x) => void 0 !== x && (void 0 === y || ord(x, y)) ? x : y)
@@ -439,9 +442,6 @@ const branchOn = (keys, vals) => (A, xi2yA, x, _) => {
   return map(branchOnMerge(x, keys), xsA)
 }
 
-const normalizer = xi2x => (F, xi2yF, x, i) =>
-  (0,F.map)(x => xi2x(x, i), xi2yF(xi2x(x, i), i))
-
 const replaced = (inn, out, x) => acyclicEqualsU(x, inn) ? out : x
 
 function findIndex(xi2b, xs) {
@@ -566,9 +566,10 @@ export function lazy(o2o) {
 
 export function log() {
   const show = curry((dir, x) =>
-    console.log.apply(console,
+   (console.log.apply(console,
                       copyToFrom([], 0, arguments, 0, arguments.length)
-                      .concat([dir, x])) || x)
+                      .concat([dir, x])),
+    x))
   return iso(show("get"), show("set"))
 }
 
@@ -602,6 +603,8 @@ export const collectAs = curry((xi2y, t, s) =>
 
 export const collect = collectAs(id)
 
+export const count = concatAs(x => void 0 !== x ? 1 : 0, Sum)
+
 export const firstAs = curry(mkFirst(x => void 0 !== x ? the(x) : x))
 
 export const first = firstAs(id)
@@ -626,7 +629,7 @@ export const or = any(id)
 
 export const product = concatAs(unto(1), Monoid((y, x) => x * y, 1))
 
-export const sum = concatAs(unto(0), Monoid((y, x) => x + y, 0))
+export const sum = concatAs(unto(0), Sum)
 
 // Creating new traversals
 
@@ -718,15 +721,19 @@ export function defaults(out) {
   return (F, xi2yF, x, i) => (0,F.map)(o2u, xi2yF(void 0 !== x ? x : out, i))
 }
 
+export function define(v) {
+  const untoV = unto(v)
+  return (F, xi2yF, x, i) => (0,F.map)(untoV, xi2yF(void 0 !== x ? x : v, i))
+}
+
+export const normalize = xi2x => (F, xi2yF, x, i) =>
+  (0,F.map)(x => void 0 !== x ? xi2x(x, i) : x,
+            xi2yF(void 0 !== x ? xi2x(x, i) : x, i))
+
 export const required = inn => replace(inn, void 0)
 
-export const define = v => normalizer(unto(v))
-
-export const normalize = xi2x =>
-  normalizer((x, i) => void 0 !== x ? xi2x(x, i) : void 0)
-
 export const rewrite = yi2y => (F, xi2yF, x, i) =>
-  (0,F.map)(y => void 0 !== y ? yi2y(y, i) : void 0, xi2yF(x, i))
+  (0,F.map)(y => void 0 !== y ? yi2y(y, i) : y, xi2yF(x, i))
 
 // Lensing arrays
 
@@ -866,6 +873,8 @@ export const iso =
   curry((bwd, fwd) => (F, xi2yF, x, i) => (0,F.map)(fwd, xi2yF(bwd(x), i)))
 
 // Isomorphisms and combinators
+
+export const complement = iso(notPartial, notPartial)
 
 export const identity = (_F, xi2yF, x, i) => xi2yF(x, i)
 

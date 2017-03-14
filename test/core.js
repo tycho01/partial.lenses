@@ -24,6 +24,10 @@ const foldx = concat => R.curry((f, r, t, s) =>
   concatAs((x, i) => r => f(r, x, i), {empty: () => R.identity, concat}, t, s)(r))
 const concatDefined = m => R.curry((t, s) => concat(m, [t, optional], s))
 
+const toPartial = f => x => isDefined(x) ? f(x) : x
+
+const Sum = {empty: () => 0, concat: R.add}
+
 // Optics
 
 export const toFunction = L.toFunction
@@ -90,13 +94,15 @@ export const collect = R.curry((t, s) => collectAs(R.identity, t, s))
 export const collectAs = R.curry((to, t, s) =>
   concatAs(R.pipe(to, toCollect), Collect, t, s))
 
+export const count = concatAs(x => x !== undefined ? 1 : 0, Sum)
+
 export const maximum = concat({empty: () => {}, concat: maxPartial})
 export const minimum = concat({empty: () => {}, concat: minPartial})
 
 export const or = any(R.identity)
 
 export const product = concatDefined({empty: () => 1, concat: R.multiply})
-export const sum = concatDefined({empty: () => 0, concat: R.add})
+export const sum = concatDefined(Sum)
 
 // Creating new traversals
 
@@ -210,5 +216,6 @@ export const iso = lens
 
 // Isomorphisms and combinators
 
+export const complement = iso(toPartial(R.not), toPartial(R.not))
 export const identity = iso(R.identity, R.identity)
 export const inverse = i => iso(getInverse(i), get(i))
