@@ -1,4 +1,152 @@
+declare var L: L.Static;
 
+declare namespace L {
+	
+	type OpticsProp = string;
+	type OpticsIndex = number;
+	type OpticsPath = (string | number)[];
+	type Optics = OpticsProp | OpticsIndex | OpticsPath;
+	
+	type Transform = Optics;
+	
+	type Traversal = Optics;
+	
+	type Testable = any;
+	
+	type MabeyData = any | null | undefined;
+	type MabeyValue = any | null | undefined;
+	
+	interface Static {
+		
+		prop(x: any): OpticsProp | never;
+		
+		index(x: any): OpticsIndex | never;
+		
+		compose(...x): OpticsPath | never;
+		
+		get(optics: Optics, mabeyData: MabeyData): MabeyValue;
+		get(optics: Optics): (mabeyData: MabeyData) => MabeyValue;
+		
+		set<T>(optics: Optics, val: any, mabeyData: T): T;
+		set(optics: Optics, val: any): <T>(mabeyData: T) => T;
+		set(optics: Optics): {
+			<T>(val: any, mabeyData: T): T;
+			(val: any): <T>(mabeyData: T) => T;
+		};
+		
+		remove<T>(optics: Optics, mabeyData: T): T;
+		remove(optics: Optics): <T>(mabeyData: T) => T;
+		
+		modify<T>(optics: Optics, fn: (val: any, iOrK?: number | string) => any, mabeyData: T): T;
+		modify(optics: Optics, fn: (val: any, iOrK?: number | string) => any): <T>(mabeyData: T) => T;
+		modify(optics: Optics): {
+			<T>(fn: (val: any, iOrK?: number | string) => any, mabeyData: T): T;	
+			(fn: (val: any, iOrK?: number | string) => any): <T>(mabeyData: T) => T;
+		};
+		
+		chain<T>(fn: (val: any, iOrK?: number | string) => Optics, mabeyData: T): T;
+		chain(fn: (val: any, iOrK?: number | string) => Optics): <T>(mabeyData: T) => T;
+		
+		choice(...optics: Optics[]): Optics;
+		
+		// high-order version of choice, [ mabey call choiceBy (imitate ramda) ]
+		choose(fn: (val: any, iOrK?: number | string) => Optics): Optics;
+		
+		optional: Optics;
+		
+		when(fn: (val: any, iOrK?: number | string) => Testable): Optics;
+		
+		zero: Optics;
+		
+		lazy(fn: (optics: Optics) => Optics): Optics;
+		
+		log(...labels: any[]): Optics;
+		
+		toFunction(optics: Optics): Optics;
+		
+		seq(...optics: Optics[]): Transform;
+		
+		// concat
+		
+		// concatAs
+		
+		all(pred: (val: any, iOrK?: number|string) => Testable, traversal: Traversal, mabeyData: MabeyData): boolean;
+		all(pred: (val: any, iOrK?: number|string) => Testable, traversal: Traversal): (mabeyData: MabeyData) => boolean
+		all(pred: (val: any, iOrK?: number|string) => Testable): {
+			(traversal: Traversal, mabeyData: MabeyData): boolean;
+			(traversal: Traversal): (mabeyData: MabeyData) => boolean;
+		};
+		
+		and(traversal: Traversal, mabeyData: MabeyData): boolean;
+		and(traversal: Traversal): (mabeyData: MabeyData) => boolean;
+		
+		any(pred: (val: any, iOrK?: number|string) => Testable, traversal: Traversal, mabeyData: MabeyData): boolean;
+		any(pred: (val: any, iOrK?: number|string) => Testable, traversal: Traversal): (mabeyData: MabeyData) => boolean
+		any(pred: (val: any, iOrK?: number|string) => Testable): {
+			(traversal: Traversal, mabeyData: MabeyData): boolean;
+			(traversal: Traversal): (mabeyData: MabeyData) => boolean;
+		};
+		
+		collect(traversal: Traversal, mabeyData: MabeyData): any[];
+		collect(traversal: Traversal): (mabeyData: MabeyData) => any[];
+		
+		collectAs(fn: (val: any, iOrk?: number|string) => any, traversal: Traversal, mabeyData: MabeyData): any[];
+		collectAs(fn: (val: any, iOrk?: number|string) => any, traversal: Traversal): (mabeyData: MabeyData) => any[];
+		collectAs(fn: (val: any, iOrk?: number|string) => any): {
+			(traversal: Traversal, mabeyData: MabeyData): any[];
+			(traversal: Traversal): (mabeyData: MabeyData) => any[];
+		};
+		
+		first(traversal: Traversal, mabeyData: MabeyData): MabeyValue;
+		first(traversal: Traversal): (mabeydata: MabeyData) => MabeyValue;
+		
+		firstAs(fn: (mabeyValue: MabeyValue, iOrK?: number|string) => MabeyValue, traversal: Traversal, mabeyData: MabeyData): MabeyValue;
+		firstAs(fn: (mabeyValue: MabeyValue, iOrK?: number|string) => MabeyValue, traversal: Traversal): (mabeyData: MabeyData) => MabeyData;
+		firstAs(fn: (mabeyValue: MabeyValue, iOrK?: number|string) => MabeyValue): {
+			(traversal: Traversal, mabeyData: MabeyData): MabeyValue;
+			(traversal: Traversal): (mabeyData: MabeyData) => MabeyValue;
+		};
+		
+		foldl(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue, val: MabeyValue, traversal: Traversal, mabeyData: MabeyData): any;
+		foldl(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue, val: MabeyValue, traversal: Traversal): (mabeyData: MabeyData) => any;
+		foldl(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue, val: MabeyValue): {
+			(traversal: Traversal, mabeyData: MabeyData): any;
+			(traversal: Traversal): (mabeyData: MabeyData) => any;
+		};
+		foldl(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue): {
+			(val: MabeyValue, traversal: Traversal, mabeyData: MabeyData): any;
+			(val: MabeyValue, traversal: Traversal): (mabeyData: MabeyData) => any;
+			(val: MabeyValue): {
+				(traversal: Traversal, mabeyData: MabeyData): any;
+				(traversal: Traversal): (mabeyData: MabeyData) => any;		
+			};
+		};
+		
+		foldr(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue, val: MabeyValue, traversal: Traversal, mabeyData: MabeyData): any;
+		foldr(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue, val: MabeyValue, traversal: Traversal): (mabeyData: MabeyData) => any;
+		foldr(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue, val: MabeyValue): {
+			(traversal: Traversal, mabeyData: MabeyData): any;
+			(traversal: Traversal): (mabeyData: MabeyData) => any;
+		};
+		foldr(fn: (val1: MabeyValue, val2: MabeyValue, iOrK?: number|string) => MabeyValue): {
+			(val: MabeyValue, traversal: Traversal, mabeyData: MabeyData): any;
+			(val: MabeyValue, traversal: Traversal): (mabeyData: MabeyData) => any;
+			(val: MabeyValue): {
+				(traversal: Traversal, mabeyData: MabeyData): any;
+				(traversal: Traversal): (mabeyData: MabeyData) => any;		
+			};
+		};
+		
+		maximum(traversal: Traversal, mabeyData: MabeyData): MabeyValue;
+		
+		
+	}
+	
+}
+
+export = L;
+
+/*
 
 toFunction(o)
 // toFunction(optic) ~> optic
@@ -225,3 +373,6 @@ identity = (_F, xi2yF, x, i) => xi2yF(x, i)
 
 inverse = iso => (F, xi2yF, x, i) =>
 // index(elemIndex) ~> lens
+
+//*/
+
