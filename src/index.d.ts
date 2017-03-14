@@ -2,38 +2,42 @@ declare var L: L.Static;
 
 declare namespace L {
 	
-	type OpticsProp = string;
-	type OpticsIndex = number;
-	type OpticsPath = (string | number)[];
-	type Optics = OpticsProp | OpticsIndex | OpticsPath;
-	type Transform = Optics;
-	type Traversal = Optics;
-	type MaybeData = any | null | undefined;
+    type Prop = string | number;
+	type Path = Prop[];
+	type Optic = Prop | Path;
+	type Transform = Function; // ?
+	type Traversal = never; // ?
 	type MaybeValue = any | null | undefined;
-	type Pred = (maybeValue: MaybeValue, iOrK?: number | string) => boolean;
+	type Pred = (maybeValue: MaybeValue, prop?: Prop) => boolean;
 
 	interface Static {
 		
-		toFunction(optics: Optics): Optics;
+		toFunction(optic: Optic): Optic;
         // toFunction(optic) ~> optic
+        // isomorphisms and lenses:
+        // (Functor c, (Maybe a, Index) -> c b, Maybe s, Index) -> c t
+        // traversals:
+        // (Applicative c, (Maybe a, Index) -> c b, Maybe s, Index) -> c t
+        // transforms:
+        // (Monad c, (Maybe a, Index) -> c b, Maybe s, Index) -> c t
 
         // Operations on optics
 
-		modify<T>(optics: Optics, fn: (val: any, iOrK?: number | string) => any, maybeData: T): T;
-		modify(optics: Optics, fn: (val: any, iOrK?: number | string) => any): <T>(maybeData: T) => T;
-		modify(optics: Optics): {
-			<T>(fn: (val: any, iOrK?: number | string) => any, maybeData: T): T;	
-			(fn: (val: any, iOrK?: number | string) => any): <T>(maybeData: T) => T;
+		modify<T>(optic: Optic, fn: (val: any, prop?: Prop) => any, maybeData: T): T;
+		modify(optic: Optic, fn: (val: any, prop?: Prop) => any): <T>(maybeData: T) => T;
+		modify(optic: Optic): {
+			<T>(fn: (val: any, prop?: Prop) => any, maybeData: T): T;	
+			(fn: (val: any, prop?: Prop) => any): <T>(maybeData: T) => T;
 		};
         // modify(o, xi2x, s)
         // modify(optic, (maybeValue, index) => maybeValue, maybeData) ~> maybeData
 
-		remove<T>(optics: Optics, maybeData: T): T;
-		remove(optics: Optics): <T>(maybeData: T) => T;
+		remove<T>(optic: Optic, maybeData: T): T;
+		remove(optic: Optic): <T>(maybeData: T) => T;
 		
-		set<T>(optics: Optics, val: any, maybeData: T): T;
-		set(optics: Optics, val: any): <T>(maybeData: T) => T;
-		set(optics: Optics): {
+		set<T>(optic: Optic, val: any, maybeData: T): T;
+		set(optic: Optic, val: any): <T>(maybeData: T) => T;
+		set(optic: Optic): {
 			<T>(val: any, maybeData: T): T;
 			(val: any): <T>(maybeData: T) => T;
 		};
@@ -42,47 +46,47 @@ declare namespace L {
 
         // Sequencing
 
-		seq(...optics: Optics[]): Transform;
+		seq(...optics: Optic[]): Transform;
         // seq(...optics) ~> transform
 
         // Nesting
 
-		compose(...optics): OpticsPath | never;
+		compose(...optics): Path | never;
         // compose(...optics) ~> optic
 
         // Querying
 
-		chain<T>(fn: (val: any, iOrK?: number | string) => Optics, maybeData: T): T;
-		chain(fn: (val: any, iOrK?: number | string) => Optics): <T>(maybeData: T) => T;
+		chain<T>(fn: (val: any, prop?: Prop) => Optic, maybeData: T): T;
+		chain(fn: (val: any, prop?: Prop) => Optic): <T>(maybeData: T) => T;
         // chain(xi2yO, xO)
         // chain((value, index) => optic, optic) ~> optic
 
-		choice(...optics: Optics[]): Optics;
+		choice(...optics: Optic[]): Optic;
 		// high-order version of choice, [ maybe call choiceBy (imitate ramda) ]
         // choice(...lenses) ~> optic
 
-		choose(fn: (val: any, iOrK?: number | string) => Optics): Optics;
+		choose(fn: (val: any, prop?: Prop) => Optic): Optic;
         // choose = xiM2o => (C, xi2yC, x, i) =>
         // choose((maybeValue, index) => optic) ~> optic
 
-		when(fn: Pred): Optics;
+		when(fn: Pred): Optic;
         // when = p => (C, xi2yC, x, i) =>
 
-		optional: Optics;
+		optional: Optic;
         // optional ~> optic
 
-		zero: Optics;
+		zero: Optic;
         // zero(C, xi2yC, x, i)
         // zero ~> optic
 
         // Recursing
 
-		lazy(fn: (optics: Optics) => Optics): Optics;
+		lazy(fn: (optic: Optic) => Optic): Optic;
         // lazy(optic => optic) ~> optic
 
         // Debugging
 
-		log(...labels: any[]): Optics;
+		log(...labels: any[]): Optic;
         // log(...labels) ~> optic
 
         // Operations on traversals
@@ -101,76 +105,76 @@ declare namespace L {
 
         // Folds over traversals
 
-		all(pred: Pred, traversal: Traversal, maybeData: MaybeData): boolean;
-		all(pred: Pred, traversal: Traversal): (maybeData: MaybeData) => boolean
+		all(pred: Pred, traversal: Traversal, maybeData: MaybeValue): boolean;
+		all(pred: Pred, traversal: Traversal): (maybeData: MaybeValue) => boolean
 		all(pred: Pred): {
-			(traversal: Traversal, maybeData: MaybeData): boolean;
-			(traversal: Traversal): (maybeData: MaybeData) => boolean;
+			(traversal: Traversal, maybeData: MaybeValue): boolean;
+			(traversal: Traversal): (maybeData: MaybeValue) => boolean;
 		};
 		
-		and(traversal: Traversal, maybeData: MaybeData): boolean;
-		and(traversal: Traversal): (maybeData: MaybeData) => boolean;
+		and(traversal: Traversal, maybeData: MaybeValue): boolean;
+		and(traversal: Traversal): (maybeData: MaybeValue) => boolean;
 		
-		any(pred: Pred, traversal: Traversal, maybeData: MaybeData): boolean;
-		any(pred: Pred, traversal: Traversal): (maybeData: MaybeData) => boolean
+		any(pred: Pred, traversal: Traversal, maybeData: MaybeValue): boolean;
+		any(pred: Pred, traversal: Traversal): (maybeData: MaybeValue) => boolean
 		any(pred: Pred): {
-			(traversal: Traversal, maybeData: MaybeData): boolean;
-			(traversal: Traversal): (maybeData: MaybeData) => boolean;
+			(traversal: Traversal, maybeData: MaybeValue): boolean;
+			(traversal: Traversal): (maybeData: MaybeValue) => boolean;
 		};
 		
-		collectAs(fn: (val: any, iOrk?: number|string) => any, traversal: Traversal, maybeData: MaybeData): any[];
-		collectAs(fn: (val: any, iOrk?: number|string) => any, traversal: Traversal): (maybeData: MaybeData) => any[];
-		collectAs(fn: (val: any, iOrk?: number|string) => any): {
-			(traversal: Traversal, maybeData: MaybeData): any[];
-			(traversal: Traversal): (maybeData: MaybeData) => any[];
+		collectAs(fn: (val: any, prop?: Prop) => any, traversal: Traversal, maybeData: MaybeValue): any[];
+		collectAs(fn: (val: any, prop?: Prop) => any, traversal: Traversal): (maybeData: MaybeValue) => any[];
+		collectAs(fn: (val: any, prop?: Prop) => any): {
+			(traversal: Traversal, maybeData: MaybeValue): any[];
+			(traversal: Traversal): (maybeData: MaybeValue) => any[];
 		};
 		
-		collect(traversal: Traversal, maybeData: MaybeData): any[];
-		collect(traversal: Traversal): (maybeData: MaybeData) => any[];
+		collect(traversal: Traversal, maybeData: MaybeValue): any[];
+		collect(traversal: Traversal): (maybeData: MaybeValue) => any[];
 		
         count //concatAs(x => void 0 !== x ? 1 : 0, Sum)
 
-		firstAs(fn: (mabeyValue: MaybeValue, iOrK?: number|string) => MaybeValue, traversal: Traversal, maybeData: MaybeData): MaybeValue;
-		firstAs(fn: (mabeyValue: MaybeValue, iOrK?: number|string) => MaybeValue, traversal: Traversal): (maybeData: MaybeData) => MaybeData;
-		firstAs(fn: (mabeyValue: MaybeValue, iOrK?: number|string) => MaybeValue): {
-			(traversal: Traversal, maybeData: MaybeData): MaybeValue;
-			(traversal: Traversal): (maybeData: MaybeData) => MaybeValue;
+		firstAs(fn: (maybeValue: MaybeValue, prop?: Prop) => MaybeValue, traversal: Traversal, maybeData: MaybeValue): MaybeValue;
+		firstAs(fn: (maybeValue: MaybeValue, prop?: Prop) => MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => MaybeValue;
+		firstAs(fn: (maybeValue: MaybeValue, prop?: Prop) => MaybeValue): {
+			(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
+			(traversal: Traversal): (maybeData: MaybeValue) => MaybeValue;
 		};
 		
-		first(traversal: Traversal, maybeData: MaybeData): MaybeValue;
-		first(traversal: Traversal): (mabeydata: MaybeData) => MaybeValue;
+		first(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
+		first(traversal: Traversal): (mabeydata: MaybeValue) => MaybeValue;
 		
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue, val: MaybeValue, traversal: Traversal, maybeData: MaybeData): any;
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue, val: MaybeValue, traversal: Traversal): (maybeData: MaybeData) => any;
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue, val: MaybeValue): {
-			(traversal: Traversal, maybeData: MaybeData): any;
-			(traversal: Traversal): (maybeData: MaybeData) => any;
+		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
+		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
+		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue): {
+			(traversal: Traversal, maybeData: MaybeValue): any;
+			(traversal: Traversal): (maybeData: MaybeValue) => any;
 		};
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue): {
-			(val: MaybeValue, traversal: Traversal, maybeData: MaybeData): any;
-			(val: MaybeValue, traversal: Traversal): (maybeData: MaybeData) => any;
+		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue): {
+			(val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
+			(val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
 			(val: MaybeValue): {
-				(traversal: Traversal, maybeData: MaybeData): any;
-				(traversal: Traversal): (maybeData: MaybeData) => any;		
+				(traversal: Traversal, maybeData: MaybeValue): any;
+				(traversal: Traversal): (maybeData: MaybeValue) => any;		
 			};
 		};
 		
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue, val: MaybeValue, traversal: Traversal, maybeData: MaybeData): any;
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue, val: MaybeValue, traversal: Traversal): (maybeData: MaybeData) => any;
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue, val: MaybeValue): {
-			(traversal: Traversal, maybeData: MaybeData): any;
-			(traversal: Traversal): (maybeData: MaybeData) => any;
+		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
+		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
+		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue): {
+			(traversal: Traversal, maybeData: MaybeValue): any;
+			(traversal: Traversal): (maybeData: MaybeValue) => any;
 		};
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, iOrK?: number|string) => MaybeValue): {
-			(val: MaybeValue, traversal: Traversal, maybeData: MaybeData): any;
-			(val: MaybeValue, traversal: Traversal): (maybeData: MaybeData) => any;
+		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue): {
+			(val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
+			(val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
 			(val: MaybeValue): {
-				(traversal: Traversal, maybeData: MaybeData): any;
-				(traversal: Traversal): (maybeData: MaybeData) => any;		
+				(traversal: Traversal, maybeData: MaybeValue): any;
+				(traversal: Traversal): (maybeData: MaybeValue) => any;		
 			};
 		};
 
-		maximum(traversal: Traversal, maybeData: MaybeData): MaybeValue;
+		maximum(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 		
         minimum
         // minimum(traversal, maybeData) ~> maybeValue
@@ -198,8 +202,8 @@ declare namespace L {
 
         // Operations on lenses
 
-		get(optics: Optics, maybeData: MaybeData): MaybeValue;
-		get(optics: Optics): (maybeData: MaybeData) => MaybeValue;
+		get(optic: Optic, maybeData: MaybeValue): MaybeValue;
+		get(optic: Optic): (maybeData: MaybeValue) => MaybeValue;
 		
         // Creating new lenses
 
@@ -241,14 +245,14 @@ declare namespace L {
         findWith(...ls)
         // findWith(...lenses) ~> lens
 
-		index(x: any): OpticsIndex | never;
+		index<T extends number>(i: T): T;
 		
         slice(begin, end) => (F, xsi2yF, xs, i) =>
         // slice(maybeBegin, maybeEnd) ~> lens
 
         // Lensing objects
 
-		prop(s: any): OpticsProp | never;
+		prop<T extends string>(s: T): T;
 		
         props()
         // props(...propNames) ~> lens
