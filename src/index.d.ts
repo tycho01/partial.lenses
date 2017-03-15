@@ -4,14 +4,20 @@ declare namespace L {
 	
     type Prop = string | number;
 	type Path = Prop[];
-	type Optic = Prop | Path;
-	type Lens = Optic; // ?
+	type Optic = Prop | Path | Lens;
+	// type Lens = Optic; // ?
 	type Transform = Function; // ?
 	type Traversal = never; // ?
 	type MaybeValue = any | null | undefined;
+	type Testable = any | null | undefined;
 	type Pred = (maybeValue: MaybeValue, prop?: Prop) => boolean;
     type xi2x = (maybeValue: MaybeValue, index?: Prop) => MaybeValue;
-    type FoldFn = FoldFn;
+    type FoldFn = (val1: MaybeValue, val2: MaybeValue, iOrK?: Prop) => MaybeValue;
+    
+    // lens
+    type Setter = (maybeValue: MaybeValue, prop?: Prop) => MaybeValue;
+    type Getter = (maybeValue: MaybeValue, maybeData: MaybeValue, prop?: Prop) => MaybeValue; // maybeData 跟 prop 的顺序换一下的话就跟 Array.prototype.map( (val, idx, origin) => any ); 的 mapFn 类似了。
+    type Lens = Setter | Getter;
 
 	interface Static {
 		
@@ -133,7 +139,7 @@ declare namespace L {
 		collect(traversal: Traversal, maybeData: MaybeValue): any[];
 		collect(traversal: Traversal): (maybeData: MaybeValue) => any[];
 		
-        count //concatAs(x => void 0 !== x ? 1 : 0, Sum)
+        count(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 
 		firstAs(fn: (maybeValue: MaybeValue, prop?: Prop) => MaybeValue, traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 		firstAs(fn: (maybeValue: MaybeValue, prop?: Prop) => MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => MaybeValue;
@@ -179,7 +185,7 @@ declare namespace L {
 		
         minimum(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 
-        or //= any(id)
+        or(traversal: Traversal, maybeData: MaybeValue): boolean;
 
         product(traversal: Traversal, maybeData: MaybeValue): number;
 
@@ -187,15 +193,15 @@ declare namespace L {
 
         // Creating new traversals
 
-        branch(template)
+        branch(template: {[K: string]: Optic}): Optic;
         // branch({prop: traversal, ...props}) ~> traversal
 
         // Traversals and combinators
 
-        elems(A, xi2yA, xs, _)
-        // elems ~> traversal
+        // elems(A, xi2yA, xs, _)
+        elems: Traversal;
 
-        values(A, xi2yA, xs, _)
+        values: Traversal;
         // values ~> traversal
 
         // Operations on lenses
@@ -205,38 +211,38 @@ declare namespace L {
 		
         // Creating new lenses
 
-        lens(get, set) => (F, xi2yF, x, i): //?
+        lens(setter: Setter, getter: Getter): Lens;
         // lens((maybeData, index) => maybeValue, (maybeValue, maybeData, index) => maybeData) ~> lens
 
         // Computing derived props
 
-        augment(template)
+        augment(template: {[K: string|number]: Function}): Lens;
         // augment({prop: object => value, ...props}) ~> lens
 
         // Enforcing invariants
 
-        defaults(out)
+        defaults(out: any): Lens;
         // defaults(valueIn) ~> lens
 
-        required(inn)
+        required(inn: any): Lens;
         // required(valueOut) ~> lens
 
-        define(v)
+        define(v: any): Lens;
         // define(value) ~> lens
 
-        normalize(xi2x: xi2x): Optic;
+        normalize(xi2x: xi2x): Lens;
         // normalize((value, index) => maybeValue) ~> lens
 
-        rewrite(yi2y) => (F, xi2yF, x, i) =>
+        rewrite(xi2x: xi2x): Lens;
         // rewrite((valueOut, index) => maybeValueOut) ~> lens
 
         // Lensing arrays
 
-        append = (F, xi2yF, xs, i) =>
-        // append ~> lens
+        // append = (F, xi2yF, xs, i) =>
+        append: Lens;
 
-        filter = xi2b => (F, xi2yF, xs, i) => {
-        // filter(Pred) ~> lens
+        // filter = xi2b => (F, xi2yF, xs, i) => 
+        filter(pred: (maybeValue: MaybeValue, iOrK?: Prop) => Testable): Lens;
 
         // find(Pred) ~> lens
 
@@ -245,43 +251,43 @@ declare namespace L {
 
 		index<T extends number>(i: T): T;
 		
-        slice(begin, end) => (F, xsi2yF, xs, i) =>
+        slice(begin: Prop, end: Prop): Lens;
         // slice(maybeBegin, maybeEnd) ~> lens
 
         // Lensing objects
 
 		prop<T extends string>(s: T): T;
 		
-        props()
+        props(...ps: Prop[]): Lens;
         // props(...propNames) ~> lens
 
-        removable(...ps) => (F, xi2yF, x, i) =>
+        removable(...ps: Prop[]): Lens;
         // removable(...propNames) ~> lens
 
         // Providing defaults
 
-        valueOr = v => (_F, xi2yF, x, i) =>
+        valueOr(out: any): Lens;
         // valueOr(valueOut) ~> lens
 
         // Adapting to data
 
-        orElse
+        orElse(backupLens: Lens, primaryLens: Lens): Lens;
         // orElse(backupLens, primaryLens) ~> lens
 
         // Read-only mapping
 
-        to
+        to(xi2x: xi2x): Lens;
         // to((maybeValue, index) => maybeValue) ~> lens
 
-        just
+        just(maybeValue: MaybeValue): Lens;
         // just(maybeValue) ~> lens
 
         // Transforming data
 
-        pick(template)
+        pick(template: {[k: Prop]: Prop}): Lens;
         // pick({prop: lens, ...props}) ~> lens
 
-        replace(inn, out)
+        replace(inn: MaybeValue, out: MaybeValue): Lens;
         // replace(maybeValueIn, maybeValueOut) ~> lens
 
         // Operations on isomorphisms
