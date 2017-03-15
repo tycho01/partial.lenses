@@ -5,10 +5,13 @@ declare namespace L {
     type Prop = string | number;
 	type Path = Prop[];
 	type Optic = Prop | Path;
+	type Lens = Optic; // ?
 	type Transform = Function; // ?
 	type Traversal = never; // ?
 	type MaybeValue = any | null | undefined;
 	type Pred = (maybeValue: MaybeValue, prop?: Prop) => boolean;
+    type xi2x = (maybeValue: MaybeValue, index?: Prop) => MaybeValue;
+    type FoldFn = FoldFn;
 
 	interface Static {
 		
@@ -23,14 +26,12 @@ declare namespace L {
 
         // Operations on optics
 
-		modify<T>(optic: Optic, fn: (val: any, prop?: Prop) => any, maybeData: T): T;
-		modify(optic: Optic, fn: (val: any, prop?: Prop) => any): <T>(maybeData: T) => T;
+		modify<T>(optic: Optic, fn: xi2x, maybeData: T): T;
+		modify(optic: Optic, fn: xi2x): <T>(maybeData: T) => T;
 		modify(optic: Optic): {
-			<T>(fn: (val: any, prop?: Prop) => any, maybeData: T): T;	
-			(fn: (val: any, prop?: Prop) => any): <T>(maybeData: T) => T;
+			<T>(fn: xi2x, maybeData: T): T;	
+			(fn: xi2x): <T>(maybeData: T) => T;
 		};
-        // modify(o, xi2x, s)
-        // modify(optic, (maybeValue, index) => maybeValue, maybeData) ~> maybeData
 
 		remove<T>(optic: Optic, maybeData: T): T;
 		remove(optic: Optic): <T>(maybeData: T) => T;
@@ -144,13 +145,13 @@ declare namespace L {
 		first(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 		first(traversal: Traversal): (mabeydata: MaybeValue) => MaybeValue;
 		
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue): {
+		foldl(fn: FoldFn, val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
+		foldl(fn: FoldFn, val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
+		foldl(fn: FoldFn, val: MaybeValue): {
 			(traversal: Traversal, maybeData: MaybeValue): any;
 			(traversal: Traversal): (maybeData: MaybeValue) => any;
 		};
-		foldl(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue): {
+		foldl(fn: FoldFn): {
 			(val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
 			(val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
 			(val: MaybeValue): {
@@ -159,13 +160,13 @@ declare namespace L {
 			};
 		};
 		
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue, val: MaybeValue): {
+		foldr(fn: FoldFn, val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
+		foldr(fn: FoldFn, val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
+		foldr(fn: FoldFn, val: MaybeValue): {
 			(traversal: Traversal, maybeData: MaybeValue): any;
 			(traversal: Traversal): (maybeData: MaybeValue) => any;
 		};
-		foldr(fn: (val1: MaybeValue, val2: MaybeValue, prop?: Prop) => MaybeValue): {
+		foldr(fn: FoldFn): {
 			(val: MaybeValue, traversal: Traversal, maybeData: MaybeValue): any;
 			(val: MaybeValue, traversal: Traversal): (maybeData: MaybeValue) => any;
 			(val: MaybeValue): {
@@ -176,16 +177,13 @@ declare namespace L {
 
 		maximum(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 		
-        minimum
-        // minimum(traversal, maybeData) ~> maybeValue
+        minimum(traversal: Traversal, maybeData: MaybeValue): MaybeValue;
 
-        or = any(id)
+        or //= any(id)
 
-        product
-        // product(traversal, maybeData) ~> number
+        product(traversal: Traversal, maybeData: MaybeValue): number;
 
-        sum
-        // sum(traversal, maybeData) ~> number
+        sum(traversal: Traversal, maybeData: MaybeValue): number;
 
         // Creating new traversals
 
@@ -226,7 +224,7 @@ declare namespace L {
         define(v)
         // define(value) ~> lens
 
-        normalize(xi2x)
+        normalize(xi2x: xi2x): Optic;
         // normalize((value, index) => maybeValue) ~> lens
 
         rewrite(yi2y) => (F, xi2yF, x, i) =>
