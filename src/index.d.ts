@@ -18,6 +18,8 @@ declare namespace L {
     type Setter = (maybeValue: MaybeValue, prop?: Prop) => MaybeValue;
     type Getter = (maybeValue: MaybeValue, maybeData: MaybeValue, prop?: Prop) => MaybeValue; // maybeData 跟 prop 的顺序换一下的话就跟 Array.prototype.map( (val, idx, origin) => any ); 的 mapFn 类似了。
     type Lens = Setter | Getter;
+    
+    type Isomorphism = any;
 
 	interface Static {
 		
@@ -292,20 +294,21 @@ declare namespace L {
 
         // Operations on isomorphisms
 
-        getInverse
-        // getInverse(isomorphism, maybeData) ~> maybeData
+        getInverse(isomorphism: Isomorphism, maybeData: MaybeValue): MaybeValue;
 
         // Creating new isomorphisms
 
-        iso(bwd, fwd) => (F, xi2yF, x, i) => 
+        iso(fn0: (maybeData: MaybeValue) => MaybeValue, fn1: (maybeData: MaybeValue) => MaybeValue): Isomorphism;
         // iso(maybeData => maybeValue, maybeValue => maybeData) ~> isomorphism
 
         // Isomorphisms and combinators
 
-        identity = (_F, xi2yF, x, i) => xi2yF(x, i)
+        identity: Isomorphism;
         // identity ~> isomorphism
 
-        inverse = iso => (F, xi2yF, x, i) =>
+        complement: Isomorphism;
+        
+        inverse(isomorphism: Isomorphism): Isomorphism;
         // index(elemIndex) ~> lens
 		
 	}
