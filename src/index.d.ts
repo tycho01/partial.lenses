@@ -19,6 +19,11 @@ declare namespace L {
     type Getter = (maybeValue: MaybeValue, maybeData: MaybeValue, prop?: Prop) => MaybeValue; // maybeData 跟 prop 的顺序换一下的话就跟 Array.prototype.map( (val, idx, origin) => any ); 的 mapFn 类似了。
     type Lens = Setter | Getter;
     
+    interface Monoid<T> {
+        empty(): T;
+        concat(x: T, y: T): T;
+    }
+    
     type Isomorphism = any;
 
 	interface Static {
@@ -100,17 +105,11 @@ declare namespace L {
 
         // Operations on traversals
 
-        concatAs
+        concatAs<T>(fn: xi2x, monoid: Monoid<T>, traversal: Traversal, maybeData: MaybeValue): MaybeValue;
         // concatAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal
 
-        concat
+        concat<T>(monoid: Monoid<T>, traversal: Traversal, maybeData: MaybeValue): MaybeValue;
         // concat(monoid, traversal, maybeData) ~> traversal
-
-        mergeAs
-        // mergeAs((maybeValue, index) => value, monoid, traversal, maybeData) ~> traversal
-
-        merge
-        // merge(monoid, traversal, maybeData) ~> traversal
 
         // Folds over traversals
 
